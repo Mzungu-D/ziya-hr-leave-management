@@ -297,6 +297,7 @@ interface PasswordFieldProps {
   onToggle: () => void;
   disabled?: boolean;
   autoComplete?: string;
+  hideLabel?: boolean;
 }
 
 function PasswordField({
@@ -310,15 +311,18 @@ function PasswordField({
   onToggle,
   disabled = false,
   autoComplete,
+  hideLabel = false,
 }: PasswordFieldProps) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-2 block text-sm font-semibold text-slate-700"
-      >
-        {label}
-      </label>
+      {!hideLabel && (
+        <label
+          htmlFor={id}
+          className="mb-2 block text-sm font-semibold text-slate-700"
+        >
+          {label}
+        </label>
+      )}
 
       <div className="relative">
         <KeyRound
@@ -1210,6 +1214,7 @@ export function Login() {
             }
             disabled={isSubmitting}
             autoComplete="current-password"
+            hideLabel
           />
         </div>
 
