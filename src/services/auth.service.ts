@@ -11,17 +11,19 @@ import type {
 /**
  * Authentication service configuration.
  *
- * The frontend should never hard-code production API URLs.
- * VITE_API_BASE_URL will be supplied through the environment.
+ * Production API:
+ * https://ziya-hr-api-production.up.railway.app
+ *
+ * VITE_API_BASE_URL can override this value when running
+ * against another environment.
  */
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://ziya-hr-api-production.up.railway.app"
+).replace(/\/+$/, "");
 
 /**
  * Authentication API endpoints.
- *
- * These paths form the frontend contract with the future HR backend.
- * They can be adjusted centrally when the backend routes are finalized.
  */
 const AUTH_ENDPOINTS = {
   login: "/api/auth/login",
@@ -60,9 +62,8 @@ interface ApiResponse<T> {
 /**
  * Fetch configuration used by authentication requests.
  *
- * Credentials are included so that secure HTTP-only cookies can
- * be used by the backend when the authentication architecture
- * is configured that way.
+ * Credentials are included so that secure HTTP-only cookies
+ * can be used by the backend.
  */
 const defaultRequestInit: RequestInit = {
   credentials: "include",
@@ -128,6 +129,8 @@ function createAuthError(
 
 /**
  * Parse an API response safely.
+ *
+ * The backend is expected to return JSON.
  */
 async function parseResponse<T>(
   response: Response,
@@ -135,7 +138,19 @@ async function parseResponse<T>(
   const contentType =
     response.headers.get("content-type") ?? "";
 
+  /*
+   * If the backend unexpectedly returns HTML or another
+   * non-JSON response, do not silently treat it as a
+   * successful authentication response.
+   */
   if (!contentType.includes("application/json")) {
+    if (!response.ok) {
+      throw {
+        message: `Authentication request failed with status ${response.status}.`,
+        status: response.status,
+      } satisfies AuthServiceError;
+    }
+
     return undefined;
   }
 
@@ -174,10 +189,13 @@ async function request<T>(
   endpoint: string,
   init?: RequestInit,
 ): Promise<T> {
+  const url = buildUrl(endpoint);
+
   try {
-    const response = await fetch(buildUrl(endpoint), {
+    const response = await fetch(url, {
       ...defaultRequestInit,
       ...init,
+      credentials: "include",
       headers: {
         ...defaultRequestInit.headers,
         ...(init?.headers ?? {}),
@@ -188,7 +206,8 @@ async function request<T>(
 
     if (data === undefined) {
       throw {
-        message: "The authentication server returned an empty response.",
+        message:
+          "The authentication server returned an empty response.",
         status: response.status,
       } satisfies AuthServiceError;
     }
@@ -205,24 +224,27 @@ async function request<T>(
 /**
  * Authenticate a user.
  *
- * The backend determines whether the user is authenticated using
- * email/password, phone/OTP, or another supported authentication
- * method.
+ * The backend determines whether the user is authenticated
+ * using email/password, phone/OTP, or another supported
+ * authentication method.
  */
 export async function login(
   credentials: LoginCredentials,
 ): Promise<LoginResponse> {
-  return request<LoginResponse>(AUTH_ENDPOINTS.login, {
-    method: "POST",
-    body: JSON.stringify(credentials),
-  });
+  return request<LoginResponse>(
+    AUTH_ENDPOINTS.login,
+    {
+      method: "POST",
+      body: JSON.stringify(credentials),
+    },
+  );
 }
 
 /**
  * End the current authenticated session.
  *
- * The backend should invalidate the server-side session/refresh
- * token and clear any secure authentication cookies.
+ * The backend invalidates the server-side session/refresh
+ * token and clears secure authentication cookies.
  */
 export async function logout(): Promise<LogoutResponse> {
   try {
@@ -231,6 +253,7 @@ export async function logout(): Promise<LogoutResponse> {
       {
         ...defaultRequestInit,
         method: "POST",
+        credentials: "include",
       },
     );
 
@@ -266,8 +289,8 @@ export async function getCurrentSession(): Promise<LoginResponse> {
 /**
  * Refresh an expired or soon-to-expire access session.
  *
- * Refresh-token handling should ultimately remain server-controlled
- * where possible, preferably through secure HTTP-only cookies.
+ * Refresh-token handling remains server-controlled through
+ * secure HTTP-only cookies.
  */
 export async function refreshSession(): Promise<LoginResponse> {
   return request<LoginResponse>(
@@ -287,10 +310,13 @@ export async function requestPasswordReset(
   return request<{
     success: boolean;
     message?: string;
-  }>(AUTH_ENDPOINTS.requestPasswordReset, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  }>(
+    AUTH_ENDPOINTS.requestPasswordReset,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 /**
@@ -309,10 +335,13 @@ export async function resetPassword(
   return request<{
     success: boolean;
     message?: string;
-  }>(AUTH_ENDPOINTS.resetPassword, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  }>(
+    AUTH_ENDPOINTS.resetPassword,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 /**
@@ -324,10 +353,13 @@ export async function requestOtp(
   return request<{
     success: boolean;
     message?: string;
-  }>(AUTH_ENDPOINTS.requestOtp, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  }>(
+    AUTH_ENDPOINTS.requestOtp,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 /**
@@ -346,8 +378,7 @@ export async function verifyOtp(
 }
 
 /**
- * Export the endpoint configuration for testing and future
- * API integration without exposing mutable configuration.
+ * Export the authentication service.
  */
 export const authService = {
   login,
