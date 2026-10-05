@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'8b7a474522489be05d5e48d828eb56cf833e727fd23e236f4c7670860a77a902'>;
+  StorageHashBase<'2522cd9bed1079eb41f751f4314117097090437518d5bf95f20f4ffb607e9da0'>;
 export type ExecutionHash =
-  ExecutionHashBase<'be6bc417f3f67b7efa349ce08e1041dbe9517e83539b40bf917d9c8fc035ad8b'>;
+  ExecutionHashBase<'88cc5f474f75da3f90dcfb2665d66e017ad9d0b3c843a84d66d492320c6ed95c'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -282,10 +282,41 @@ export type FieldOutputTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['output'] | null;
       readonly phone: CodecTypes['pg/text@1']['output'];
       readonly phoneVerified: CodecTypes['pg/bool@1']['output'];
+      readonly profilePictureDocumentId: CodecTypes['pg/text@1']['output'] | null;
       readonly reportsToId: CodecTypes['pg/text@1']['output'] | null;
       readonly role: 'EMPLOYEE' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly EmployeeDocument: {
+      readonly accessLevel: 'EMPLOYEE_AND_HR' | 'HR_ONLY';
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly description: CodecTypes['pg/text@1']['output'] | null;
+      readonly documentType:
+        | 'PROFILE_PHOTO'
+        | 'NATIONAL_ID'
+        | 'PASSPORT'
+        | 'KRA_PIN'
+        | 'NSSF'
+        | 'SHA'
+        | 'HELB'
+        | 'EMPLOYMENT_CONTRACT'
+        | 'ACADEMIC_CERTIFICATE'
+        | 'PROFESSIONAL_CERTIFICATE'
+        | 'STATUTORY_DOCUMENT'
+        | 'OTHER';
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly mimeType: CodecTypes['pg/text@1']['output'];
+      readonly name: CodecTypes['pg/text@1']['output'];
+      readonly organizationId: CodecTypes['pg/text@1']['output'];
+      readonly originalName: CodecTypes['pg/text@1']['output'];
+      readonly sha256: CodecTypes['pg/text@1']['output'];
+      readonly sizeBytes: CodecTypes['pg/int4@1']['output'];
+      readonly status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+      readonly storageKey: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly uploadedById: CodecTypes['pg/text@1']['output'];
     };
     readonly LeaveApproval: {
       readonly action: 'APPROVED' | 'REJECTED';
@@ -401,10 +432,41 @@ export type FieldInputTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['input'] | null;
       readonly phone: CodecTypes['pg/text@1']['input'];
       readonly phoneVerified: CodecTypes['pg/bool@1']['input'];
+      readonly profilePictureDocumentId: CodecTypes['pg/text@1']['input'] | null;
       readonly reportsToId: CodecTypes['pg/text@1']['input'] | null;
       readonly role: 'EMPLOYEE' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly EmployeeDocument: {
+      readonly accessLevel: 'EMPLOYEE_AND_HR' | 'HR_ONLY';
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly description: CodecTypes['pg/text@1']['input'] | null;
+      readonly documentType:
+        | 'PROFILE_PHOTO'
+        | 'NATIONAL_ID'
+        | 'PASSPORT'
+        | 'KRA_PIN'
+        | 'NSSF'
+        | 'SHA'
+        | 'HELB'
+        | 'EMPLOYMENT_CONTRACT'
+        | 'ACADEMIC_CERTIFICATE'
+        | 'PROFESSIONAL_CERTIFICATE'
+        | 'STATUTORY_DOCUMENT'
+        | 'OTHER';
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly mimeType: CodecTypes['pg/text@1']['input'];
+      readonly name: CodecTypes['pg/text@1']['input'];
+      readonly organizationId: CodecTypes['pg/text@1']['input'];
+      readonly originalName: CodecTypes['pg/text@1']['input'];
+      readonly sha256: CodecTypes['pg/text@1']['input'];
+      readonly sizeBytes: CodecTypes['pg/int4@1']['input'];
+      readonly status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+      readonly storageKey: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly uploadedById: CodecTypes['pg/text@1']['input'];
     };
     readonly LeaveApproval: {
       readonly action: 'APPROVED' | 'REJECTED';
@@ -520,10 +582,41 @@ export type StorageColumnTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['output'] | null;
       readonly phone: CodecTypes['pg/text@1']['output'];
       readonly phoneVerified: CodecTypes['pg/bool@1']['output'];
+      readonly profilePictureDocumentId: CodecTypes['pg/text@1']['output'] | null;
       readonly reportsToId: CodecTypes['pg/text@1']['output'] | null;
       readonly role: 'EMPLOYEE' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
+    readonly EmployeeDocument: {
+      readonly accessLevel: 'EMPLOYEE_AND_HR' | 'HR_ONLY';
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly description: CodecTypes['pg/text@1']['output'] | null;
+      readonly documentType:
+        | 'PROFILE_PHOTO'
+        | 'NATIONAL_ID'
+        | 'PASSPORT'
+        | 'KRA_PIN'
+        | 'NSSF'
+        | 'SHA'
+        | 'HELB'
+        | 'EMPLOYMENT_CONTRACT'
+        | 'ACADEMIC_CERTIFICATE'
+        | 'PROFESSIONAL_CERTIFICATE'
+        | 'STATUTORY_DOCUMENT'
+        | 'OTHER';
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly mimeType: CodecTypes['pg/text@1']['output'];
+      readonly name: CodecTypes['pg/text@1']['output'];
+      readonly organizationId: CodecTypes['pg/text@1']['output'];
+      readonly originalName: CodecTypes['pg/text@1']['output'];
+      readonly sha256: CodecTypes['pg/text@1']['output'];
+      readonly sizeBytes: CodecTypes['pg/int4@1']['output'];
+      readonly status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+      readonly storageKey: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly uploadedById: CodecTypes['pg/text@1']['output'];
     };
     readonly LeaveApproval: {
       readonly action: 'APPROVED' | 'REJECTED';
@@ -639,10 +732,41 @@ export type StorageColumnInputTypes = {
       readonly passwordHash: CodecTypes['pg/text@1']['input'] | null;
       readonly phone: CodecTypes['pg/text@1']['input'];
       readonly phoneVerified: CodecTypes['pg/bool@1']['input'];
+      readonly profilePictureDocumentId: CodecTypes['pg/text@1']['input'] | null;
       readonly reportsToId: CodecTypes['pg/text@1']['input'] | null;
       readonly role: 'EMPLOYEE' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN';
       readonly status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
       readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
+    readonly EmployeeDocument: {
+      readonly accessLevel: 'EMPLOYEE_AND_HR' | 'HR_ONLY';
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly description: CodecTypes['pg/text@1']['input'] | null;
+      readonly documentType:
+        | 'PROFILE_PHOTO'
+        | 'NATIONAL_ID'
+        | 'PASSPORT'
+        | 'KRA_PIN'
+        | 'NSSF'
+        | 'SHA'
+        | 'HELB'
+        | 'EMPLOYMENT_CONTRACT'
+        | 'ACADEMIC_CERTIFICATE'
+        | 'PROFESSIONAL_CERTIFICATE'
+        | 'STATUTORY_DOCUMENT'
+        | 'OTHER';
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly mimeType: CodecTypes['pg/text@1']['input'];
+      readonly name: CodecTypes['pg/text@1']['input'];
+      readonly organizationId: CodecTypes['pg/text@1']['input'];
+      readonly originalName: CodecTypes['pg/text@1']['input'];
+      readonly sha256: CodecTypes['pg/text@1']['input'];
+      readonly sizeBytes: CodecTypes['pg/int4@1']['input'];
+      readonly status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+      readonly storageKey: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly uploadedById: CodecTypes['pg/text@1']['input'];
     };
     readonly LeaveApproval: {
       readonly action: 'APPROVED' | 'REJECTED';
@@ -764,6 +888,7 @@ export namespace Models {
     passwordHash: CodecTypes['pg/text@1']['output'] | null;
     phone: CodecTypes['pg/text@1']['output'];
     phoneVerified: CodecTypes['pg/bool@1']['output'];
+    profilePictureDocumentId: CodecTypes['pg/text@1']['output'] | null;
     reportsToId: CodecTypes['pg/text@1']['output'] | null;
     role: 'EMPLOYEE' | 'MANAGER' | 'HR_ADMIN' | 'SUPER_ADMIN';
     status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
@@ -771,24 +896,65 @@ export namespace Models {
     approvals: public_LeaveApproval[];
     department: public_Department | null;
     directReports: public_Employee[];
+    documents: public_EmployeeDocument[];
     invitations: public_ActivationInvitation[];
     leaveBalances: public_LeaveBalance[];
     leaveRequests: public_LeaveRequest[];
     organization: public_Organization;
     otpRecords: public_OtpVerification[];
+    profilePictureDocument: public_EmployeeDocument | null;
     reportsTo: public_Employee | null;
     sessions: public_UserSession[];
+    uploadedDocuments: public_EmployeeDocument[];
     readonly [RelationKeys]?:
       | 'approvals'
       | 'department'
       | 'directReports'
+      | 'documents'
       | 'invitations'
       | 'leaveBalances'
       | 'leaveRequests'
       | 'organization'
       | 'otpRecords'
+      | 'profilePictureDocument'
       | 'reportsTo'
-      | 'sessions';
+      | 'sessions'
+      | 'uploadedDocuments';
+  };
+  export type public_EmployeeDocument = {
+    accessLevel: 'EMPLOYEE_AND_HR' | 'HR_ONLY';
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    description: CodecTypes['pg/text@1']['output'] | null;
+    documentType:
+      | 'PROFILE_PHOTO'
+      | 'NATIONAL_ID'
+      | 'PASSPORT'
+      | 'KRA_PIN'
+      | 'NSSF'
+      | 'SHA'
+      | 'HELB'
+      | 'EMPLOYMENT_CONTRACT'
+      | 'ACADEMIC_CERTIFICATE'
+      | 'PROFESSIONAL_CERTIFICATE'
+      | 'STATUTORY_DOCUMENT'
+      | 'OTHER';
+    employeeId: CodecTypes['pg/text@1']['output'];
+    id: CodecTypes['pg/text@1']['output'];
+    mimeType: CodecTypes['pg/text@1']['output'];
+    name: CodecTypes['pg/text@1']['output'];
+    organizationId: CodecTypes['pg/text@1']['output'];
+    originalName: CodecTypes['pg/text@1']['output'];
+    sha256: CodecTypes['pg/text@1']['output'];
+    sizeBytes: CodecTypes['pg/int4@1']['output'];
+    status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+    storageKey: CodecTypes['pg/text@1']['output'];
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    uploadedById: CodecTypes['pg/text@1']['output'];
+    employee: public_Employee;
+    organization: public_Organization;
+    profileFor: public_Employee | null;
+    uploadedBy: public_Employee;
+    readonly [RelationKeys]?: 'employee' | 'organization' | 'profileFor' | 'uploadedBy';
   };
   export type public_LeaveApproval = {
     action: 'APPROVED' | 'REJECTED';
@@ -861,9 +1027,10 @@ export namespace Models {
     name: CodecTypes['pg/text@1']['output'];
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     departments: public_Department[];
+    documents: public_EmployeeDocument[];
     employees: public_Employee[];
     leaveTypes: public_LeaveType[];
-    readonly [RelationKeys]?: 'departments' | 'employees' | 'leaveTypes';
+    readonly [RelationKeys]?: 'departments' | 'documents' | 'employees' | 'leaveTypes';
   };
   export type public_OtpVerification = {
     attempts: CodecTypes['pg/int4@1']['output'];
@@ -898,6 +1065,7 @@ export declare const models: {
     ActivationInvitation: Models.public_ActivationInvitation;
     Department: Models.public_Department;
     Employee: Models.public_Employee;
+    EmployeeDocument: Models.public_EmployeeDocument;
     LeaveApproval: Models.public_LeaveApproval;
     LeaveBalance: Models.public_LeaveBalance;
     LeaveRequest: Models.public_LeaveRequest;
@@ -1138,6 +1306,11 @@ type ContractBase = Omit<
                     readonly value: DefaultLiteralValue<'pg/bool@1', false>;
                   };
                 };
+                readonly profilePictureDocumentId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
                 readonly reportsToId: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
@@ -1171,6 +1344,7 @@ type ContractBase = Omit<
               uniques: readonly [
                 { readonly columns: readonly ['email'] },
                 { readonly columns: readonly ['phone'] },
+                { readonly columns: readonly ['profilePictureDocumentId'] },
                 { readonly columns: readonly ['organizationId', 'employeeId'] },
               ];
               indexes: readonly [
@@ -1247,6 +1421,195 @@ type ContractBase = Omit<
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Employee';
                     readonly columns: readonly ['reportsToId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
+                    readonly columns: readonly ['profilePictureDocumentId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EmployeeDocument';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly EmployeeDocument: {
+              columns: {
+                readonly accessLevel: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'EMPLOYEE_AND_HR'>;
+                  };
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly description: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly documentType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly employeeId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly mimeType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly name: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly organizationId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly originalName: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly sha256: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly sizeBytes: {
+                  readonly nativeType: 'int4';
+                  readonly codecId: 'pg/int4@1';
+                  readonly nullable: false;
+                };
+                readonly status: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'ACTIVE'>;
+                  };
+                };
+                readonly storageKey: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly updatedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+                readonly uploadedById: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [{ readonly columns: readonly ['storageKey'] }];
+              indexes: readonly [
+                {
+                  readonly name: 'EmployeeDocument_employeeId_idx_087dd4a6';
+                  readonly prefix: 'EmployeeDocument_employeeId_idx';
+                  readonly columns: readonly ['employeeId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_employeeId_status_idx_e746ea39';
+                  readonly prefix: 'EmployeeDocument_employeeId_status_idx';
+                  readonly columns: readonly ['employeeId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_organizationId_documentType_idx_8669346d';
+                  readonly prefix: 'EmployeeDocument_organizationId_documentType_idx';
+                  readonly columns: readonly ['organizationId', 'documentType'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_organizationId_employeeId_idx_f6f89764';
+                  readonly prefix: 'EmployeeDocument_organizationId_employeeId_idx';
+                  readonly columns: readonly ['organizationId', 'employeeId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_organizationId_idx_2e17ef41';
+                  readonly prefix: 'EmployeeDocument_organizationId_idx';
+                  readonly columns: readonly ['organizationId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_organizationId_status_idx_21af5e82';
+                  readonly prefix: 'EmployeeDocument_organizationId_status_idx';
+                  readonly columns: readonly ['organizationId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'EmployeeDocument_uploadedById_idx_b92fad21';
+                  readonly prefix: 'EmployeeDocument_uploadedById_idx';
+                  readonly columns: readonly ['uploadedById'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EmployeeDocument';
+                    readonly columns: readonly ['organizationId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Organization';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EmployeeDocument';
+                    readonly columns: readonly ['employeeId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'EmployeeDocument';
+                    readonly columns: readonly ['uploadedById'];
                   };
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
@@ -1703,7 +2066,14 @@ type ContractBase = Omit<
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [{ readonly columns: readonly ['code'] }];
-              indexes: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'Organization_code_idx_8e43b86b';
+                  readonly prefix: 'Organization_code_idx';
+                  readonly columns: readonly ['code'];
+                  readonly unique: false;
+                },
+              ];
               foreignKeys: readonly [];
             };
             readonly OtpVerification: {
@@ -1872,6 +2242,31 @@ type ContractBase = Omit<
               readonly kind: 'valueSet';
               readonly values: readonly ['PASSWORD', 'OTP', 'PASSWORD_AND_OTP'];
             };
+            readonly EmployeeDocumentAccess: {
+              readonly kind: 'valueSet';
+              readonly values: readonly ['EMPLOYEE_AND_HR', 'HR_ONLY'];
+            };
+            readonly EmployeeDocumentStatus: {
+              readonly kind: 'valueSet';
+              readonly values: readonly ['ACTIVE', 'ARCHIVED', 'DELETED'];
+            };
+            readonly EmployeeDocumentType: {
+              readonly kind: 'valueSet';
+              readonly values: readonly [
+                'PROFILE_PHOTO',
+                'NATIONAL_ID',
+                'PASSPORT',
+                'KRA_PIN',
+                'NSSF',
+                'SHA',
+                'HELB',
+                'EMPLOYMENT_CONTRACT',
+                'ACADEMIC_CERTIFICATE',
+                'PROFESSIONAL_CERTIFICATE',
+                'STATUTORY_DOCUMENT',
+                'OTHER',
+              ];
+            };
             readonly InvitationStatus: {
               readonly kind: 'valueSet';
               readonly values: readonly ['PENDING', 'USED', 'EXPIRED', 'REVOKED'];
@@ -1914,6 +2309,10 @@ type ContractBase = Omit<
       readonly model: 'Department';
     };
     readonly Employee: { readonly namespace: 'public' & NamespaceId; readonly model: 'Employee' };
+    readonly EmployeeDocument: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'EmployeeDocument';
+    };
     readonly LeaveApproval: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'LeaveApproval';
@@ -2158,6 +2557,10 @@ type ContractBase = Omit<
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bool@1' };
               };
+              readonly profilePictureDocumentId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly reportsToId: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -2211,6 +2614,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['reportsToId'];
+                };
+              };
+              readonly documents: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EmployeeDocument';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['employeeId'];
                 };
               };
               readonly invitations: {
@@ -2269,6 +2683,18 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['employeeId'];
                 };
               };
+              readonly profilePictureDocument: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EmployeeDocument';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['profilePictureDocumentId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly reportsTo: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -2292,6 +2718,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['employeeId'];
                 };
               };
+              readonly uploadedDocuments: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EmployeeDocument';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['uploadedById'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'Employee';
@@ -2311,10 +2748,157 @@ type ContractBase = Omit<
                 readonly passwordHash: { readonly column: 'passwordHash' };
                 readonly phone: { readonly column: 'phone' };
                 readonly phoneVerified: { readonly column: 'phoneVerified' };
+                readonly profilePictureDocumentId: { readonly column: 'profilePictureDocumentId' };
                 readonly reportsToId: { readonly column: 'reportsToId' };
                 readonly role: { readonly column: 'role' };
                 readonly status: { readonly column: 'status' };
                 readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
+          readonly EmployeeDocument: {
+            readonly fields: {
+              readonly accessLevel: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly description: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly documentType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly employeeId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly mimeType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly organizationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly originalName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sha256: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sizeBytes: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly storageKey: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly uploadedById: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+            };
+            readonly relations: {
+              readonly employee: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['employeeId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly organization: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Organization';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['organizationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly profileFor: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: '1:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['profilePictureDocumentId'];
+                };
+              };
+              readonly uploadedBy: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['uploadedById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'EmployeeDocument';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly accessLevel: { readonly column: 'accessLevel' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly description: { readonly column: 'description' };
+                readonly documentType: { readonly column: 'documentType' };
+                readonly employeeId: { readonly column: 'employeeId' };
+                readonly id: { readonly column: 'id' };
+                readonly mimeType: { readonly column: 'mimeType' };
+                readonly name: { readonly column: 'name' };
+                readonly organizationId: { readonly column: 'organizationId' };
+                readonly originalName: { readonly column: 'originalName' };
+                readonly sha256: { readonly column: 'sha256' };
+                readonly sizeBytes: { readonly column: 'sizeBytes' };
+                readonly status: { readonly column: 'status' };
+                readonly storageKey: { readonly column: 'storageKey' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+                readonly uploadedById: { readonly column: 'uploadedById' };
               };
             };
           };
@@ -2780,6 +3364,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['organizationId'];
                 };
               };
+              readonly documents: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'EmployeeDocument';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['organizationId'];
+                };
+              };
               readonly employees: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -3000,6 +3595,41 @@ type ContractBase = Omit<
               { readonly name: 'PASSWORD_AND_OTP'; readonly value: 'PASSWORD_AND_OTP' },
             ];
           };
+          readonly EmployeeDocumentAccess: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'EMPLOYEE_AND_HR'; readonly value: 'EMPLOYEE_AND_HR' },
+              { readonly name: 'HR_ONLY'; readonly value: 'HR_ONLY' },
+            ];
+          };
+          readonly EmployeeDocumentStatus: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'ACTIVE'; readonly value: 'ACTIVE' },
+              { readonly name: 'ARCHIVED'; readonly value: 'ARCHIVED' },
+              { readonly name: 'DELETED'; readonly value: 'DELETED' },
+            ];
+          };
+          readonly EmployeeDocumentType: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'PROFILE_PHOTO'; readonly value: 'PROFILE_PHOTO' },
+              { readonly name: 'NATIONAL_ID'; readonly value: 'NATIONAL_ID' },
+              { readonly name: 'PASSPORT'; readonly value: 'PASSPORT' },
+              { readonly name: 'KRA_PIN'; readonly value: 'KRA_PIN' },
+              { readonly name: 'NSSF'; readonly value: 'NSSF' },
+              { readonly name: 'SHA'; readonly value: 'SHA' },
+              { readonly name: 'HELB'; readonly value: 'HELB' },
+              { readonly name: 'EMPLOYMENT_CONTRACT'; readonly value: 'EMPLOYMENT_CONTRACT' },
+              { readonly name: 'ACADEMIC_CERTIFICATE'; readonly value: 'ACADEMIC_CERTIFICATE' },
+              {
+                readonly name: 'PROFESSIONAL_CERTIFICATE';
+                readonly value: 'PROFESSIONAL_CERTIFICATE';
+              },
+              { readonly name: 'STATUTORY_DOCUMENT'; readonly value: 'STATUTORY_DOCUMENT' },
+              { readonly name: 'OTHER'; readonly value: 'OTHER' },
+            ];
+          };
           readonly InvitationStatus: {
             readonly codecId: 'pg/text@1';
             readonly members: readonly [
@@ -3103,6 +3733,23 @@ type ContractBase = Omit<
           readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
           readonly ref: {
             readonly entry: 'Employee';
+            readonly field: 'updatedAt';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'EmployeeDocument';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'EmployeeDocument';
             readonly field: 'updatedAt';
             readonly namespace: 'public';
           };

@@ -16,6 +16,10 @@
       "model": "Employee",
       "namespace": "public"
     },
+    "EmployeeDocument": {
+      "model": "EmployeeDocument",
+      "namespace": "public"
+    },
     "LeaveApproval": {
       "model": "LeaveApproval",
       "namespace": "public"
@@ -97,6 +101,89 @@
               {
                 "name": "PASSWORD_AND_OTP",
                 "value": "PASSWORD_AND_OTP"
+              }
+            ]
+          },
+          "EmployeeDocumentAccess": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "EMPLOYEE_AND_HR",
+                "value": "EMPLOYEE_AND_HR"
+              },
+              {
+                "name": "HR_ONLY",
+                "value": "HR_ONLY"
+              }
+            ]
+          },
+          "EmployeeDocumentStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "ACTIVE",
+                "value": "ACTIVE"
+              },
+              {
+                "name": "ARCHIVED",
+                "value": "ARCHIVED"
+              },
+              {
+                "name": "DELETED",
+                "value": "DELETED"
+              }
+            ]
+          },
+          "EmployeeDocumentType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "PROFILE_PHOTO",
+                "value": "PROFILE_PHOTO"
+              },
+              {
+                "name": "NATIONAL_ID",
+                "value": "NATIONAL_ID"
+              },
+              {
+                "name": "PASSPORT",
+                "value": "PASSPORT"
+              },
+              {
+                "name": "KRA_PIN",
+                "value": "KRA_PIN"
+              },
+              {
+                "name": "NSSF",
+                "value": "NSSF"
+              },
+              {
+                "name": "SHA",
+                "value": "SHA"
+              },
+              {
+                "name": "HELB",
+                "value": "HELB"
+              },
+              {
+                "name": "EMPLOYMENT_CONTRACT",
+                "value": "EMPLOYMENT_CONTRACT"
+              },
+              {
+                "name": "ACADEMIC_CERTIFICATE",
+                "value": "ACADEMIC_CERTIFICATE"
+              },
+              {
+                "name": "PROFESSIONAL_CERTIFICATE",
+                "value": "PROFESSIONAL_CERTIFICATE"
+              },
+              {
+                "name": "STATUTORY_DOCUMENT",
+                "value": "STATUTORY_DOCUMENT"
+              },
+              {
+                "name": "OTHER",
+                "value": "OTHER"
               }
             ]
           },
@@ -514,6 +601,13 @@
                   "kind": "scalar"
                 }
               },
+              "profilePictureDocumentId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "reportsToId": {
                 "nullable": true,
                 "type": {
@@ -602,6 +696,21 @@
                   "namespace": "public"
                 }
               },
+              "documents": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "employeeId"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeDocument",
+                  "namespace": "public"
+                }
+              },
               "invitations": {
                 "cardinality": "1:N",
                 "on": {
@@ -678,6 +787,22 @@
                   "namespace": "public"
                 }
               },
+              "profilePictureDocument": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "profilePictureDocumentId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeDocument",
+                  "namespace": "public"
+                }
+              },
               "reportsTo": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -706,6 +831,21 @@
                 },
                 "to": {
                   "model": "UserSession",
+                  "namespace": "public"
+                }
+              },
+              "uploadedDocuments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "uploadedById"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeDocument",
                   "namespace": "public"
                 }
               }
@@ -754,6 +894,9 @@
                 "phoneVerified": {
                   "column": "phoneVerified"
                 },
+                "profilePictureDocumentId": {
+                  "column": "profilePictureDocumentId"
+                },
                 "reportsToId": {
                   "column": "reportsToId"
                 },
@@ -769,6 +912,260 @@
               },
               "namespaceId": "public",
               "table": "Employee"
+            }
+          },
+          "EmployeeDocument": {
+            "fields": {
+              "accessLevel": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EmployeeDocumentAccess",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "documentType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EmployeeDocumentType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "mimeType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "originalName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sha256": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sizeBytes": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "EmployeeDocumentStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "storageKey": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "uploadedById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "employee": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "employeeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "profileFor": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "profilePictureDocumentId"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "uploadedBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "uploadedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "accessLevel": {
+                  "column": "accessLevel"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "documentType": {
+                  "column": "documentType"
+                },
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "mimeType": {
+                  "column": "mimeType"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "originalName": {
+                  "column": "originalName"
+                },
+                "sha256": {
+                  "column": "sha256"
+                },
+                "sizeBytes": {
+                  "column": "sizeBytes"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "storageKey": {
+                  "column": "storageKey"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "uploadedById": {
+                  "column": "uploadedById"
+                }
+              },
+              "namespaceId": "public",
+              "table": "EmployeeDocument"
             }
           },
           "LeaveApproval": {
@@ -1468,6 +1865,21 @@
                   "namespace": "public"
                 }
               },
+              "documents": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "EmployeeDocument",
+                  "namespace": "public"
+                }
+              },
               "employees": {
                 "cardinality": "1:N",
                 "on": {
@@ -2062,6 +2474,11 @@
                   "nativeType": "bool",
                   "nullable": false
                 },
+                "profilePictureDocumentId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "reportsToId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -2152,6 +2569,23 @@
                     "namespaceId": "public",
                     "tableName": "Employee"
                   }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "profilePictureDocumentId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "EmployeeDocument"
+                  }
                 }
               ],
               "indexes": [
@@ -2234,8 +2668,270 @@
                 },
                 {
                   "columns": [
+                    "profilePictureDocumentId"
+                  ]
+                },
+                {
+                  "columns": [
                     "organizationId",
                     "employeeId"
+                  ]
+                }
+              ]
+            },
+            "EmployeeDocument": {
+              "checks": [
+                {
+                  "expression": "\"accessLevel\" IN ('EMPLOYEE_AND_HR', 'HR_ONLY')",
+                  "name": "EmployeeDocument_accessLevel_check_ee3aba27",
+                  "prefix": "EmployeeDocument_accessLevel_check"
+                },
+                {
+                  "expression": "\"documentType\" IN ('PROFILE_PHOTO', 'NATIONAL_ID', 'PASSPORT', 'KRA_PIN', 'NSSF', 'SHA', 'HELB', 'EMPLOYMENT_CONTRACT', 'ACADEMIC_CERTIFICATE', 'PROFESSIONAL_CERTIFICATE', 'STATUTORY_DOCUMENT', 'OTHER')",
+                  "name": "EmployeeDocument_documentType_check_e45d017a",
+                  "prefix": "EmployeeDocument_documentType_check"
+                },
+                {
+                  "expression": "\"status\" IN ('ACTIVE', 'ARCHIVED', 'DELETED')",
+                  "name": "EmployeeDocument_status_check_b7c57345",
+                  "prefix": "EmployeeDocument_status_check"
+                }
+              ],
+              "columns": {
+                "accessLevel": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "EMPLOYEE_AND_HR"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EmployeeDocumentAccess",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "documentType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EmployeeDocumentType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "mimeType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "originalName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "sha256": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "sizeBytes": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "ACTIVE"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EmployeeDocumentStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "storageKey": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "uploadedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "EmployeeDocument"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "employeeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "EmployeeDocument"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  }
+                },
+                {
+                  "onDelete": "restrict",
+                  "source": {
+                    "columns": [
+                      "uploadedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "EmployeeDocument"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "employeeId"
+                  ],
+                  "name": "EmployeeDocument_employeeId_idx_087dd4a6",
+                  "prefix": "EmployeeDocument_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "employeeId",
+                    "status"
+                  ],
+                  "name": "EmployeeDocument_employeeId_status_idx_e746ea39",
+                  "prefix": "EmployeeDocument_employeeId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "documentType"
+                  ],
+                  "name": "EmployeeDocument_organizationId_documentType_idx_8669346d",
+                  "prefix": "EmployeeDocument_organizationId_documentType_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "employeeId"
+                  ],
+                  "name": "EmployeeDocument_organizationId_employeeId_idx_f6f89764",
+                  "prefix": "EmployeeDocument_organizationId_employeeId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "EmployeeDocument_organizationId_idx_2e17ef41",
+                  "prefix": "EmployeeDocument_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "status"
+                  ],
+                  "name": "EmployeeDocument_organizationId_status_idx_21af5e82",
+                  "prefix": "EmployeeDocument_organizationId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "uploadedById"
+                  ],
+                  "name": "EmployeeDocument_uploadedById_idx_b92fad21",
+                  "prefix": "EmployeeDocument_uploadedById_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "storageKey"
                   ]
                 }
               ]
@@ -2807,7 +3503,16 @@
                 }
               },
               "foreignKeys": [],
-              "indexes": [],
+              "indexes": [
+                {
+                  "columns": [
+                    "code"
+                  ],
+                  "name": "Organization_code_idx_8e43b86b",
+                  "prefix": "Organization_code_idx",
+                  "unique": false
+                }
+              ],
               "primaryKey": {
                 "columns": [
                   "id"
@@ -3044,6 +3749,38 @@
                 "PASSWORD_AND_OTP"
               ]
             },
+            "EmployeeDocumentAccess": {
+              "kind": "valueSet",
+              "values": [
+                "EMPLOYEE_AND_HR",
+                "HR_ONLY"
+              ]
+            },
+            "EmployeeDocumentStatus": {
+              "kind": "valueSet",
+              "values": [
+                "ACTIVE",
+                "ARCHIVED",
+                "DELETED"
+              ]
+            },
+            "EmployeeDocumentType": {
+              "kind": "valueSet",
+              "values": [
+                "PROFILE_PHOTO",
+                "NATIONAL_ID",
+                "PASSPORT",
+                "KRA_PIN",
+                "NSSF",
+                "SHA",
+                "HELB",
+                "EMPLOYMENT_CONTRACT",
+                "ACADEMIC_CERTIFICATE",
+                "PROFESSIONAL_CERTIFICATE",
+                "STATUTORY_DOCUMENT",
+                "OTHER"
+              ]
+            },
             "InvitationStatus": {
               "kind": "valueSet",
               "values": [
@@ -3086,10 +3823,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "8b7a474522489be05d5e48d828eb56cf833e727fd23e236f4c7670860a77a902"
+    "storageHash": "2522cd9bed1079eb41f751f4314117097090437518d5bf95f20f4ffb607e9da0"
   },
   "execution": {
-    "executionHash": "be6bc417f3f67b7efa349ce08e1041dbe9517e83539b40bf917d9c8fc035ad8b",
+    "executionHash": "88cc5f474f75da3f90dcfb2665d66e017ad9d0b3c843a84d66d492320c6ed95c",
     "mutations": {
       "defaults": [
         {
@@ -3151,6 +3888,32 @@
           },
           "ref": {
             "entry": "Employee",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "EmployeeDocument",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "EmployeeDocument",
             "field": "updatedAt",
             "namespace": "public"
           }

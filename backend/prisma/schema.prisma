@@ -46,20 +46,49 @@ enum InvitationStatus {
   REVOKED
 }
 
+enum EmployeeDocumentType {
+  PROFILE_PHOTO
+  NATIONAL_ID
+  PASSPORT
+  KRA_PIN
+  NSSF
+  SHA
+  HELB
+  EMPLOYMENT_CONTRACT
+  ACADEMIC_CERTIFICATE
+  PROFESSIONAL_CERTIFICATE
+  STATUTORY_DOCUMENT
+  OTHER
+}
+
+enum EmployeeDocumentStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum EmployeeDocumentAccess {
+  EMPLOYEE_AND_HR
+  HR_ONLY
+}
+
 model Organization {
-  id          String       @id @default(uuid())
-  name        String
-  code        String       @unique
-  createdAt   TimestamptzString @default(now())
-  updatedAt   temporal.updatedAtString()
+  id        String            @id @default(uuid())
+  name      String
+  code      String            @unique
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
 
   departments Department[]
   employees   Employee[]
   leaveTypes  LeaveType[]
+  documents   EmployeeDocument[]
+
+  @@index([code])
 }
 
 model Department {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String
   name           String
   code           String
@@ -71,6 +100,7 @@ model Department {
   leaveRequests LeaveRequest[]
 
   @@unique([organizationId, code])
+  @@index([organizationId])
 }
 
 model Employee {
@@ -93,13 +123,30 @@ model Employee {
   createdAt            TimestamptzString    @default(now())
   updatedAt            temporal.updatedAtString()
 
+  // Current profile photo document.
+  // Unique because one employee can have only one current profile photo.
+  profilePictureDocumentId String? @unique
+
   organization Organization @relation(fields: [organizationId], references: [id])
   department   Department?  @relation(fields: [departmentId], references: [id])
 
   // Employee reporting hierarchy.
-  // An employee may report to another employee.
   reportsTo     Employee?  @relation("EmployeeReporting", fields: [reportsToId], references: [id], onDelete: SetNull)
   directReports Employee[] @relation("EmployeeReporting")
+
+  // Current profile picture.
+  profilePictureDocument EmployeeDocument? @relation(
+    "EmployeeProfilePicture",
+    fields: [profilePictureDocumentId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  // Employee HR documents.
+  documents EmployeeDocument[] @relation("EmployeeDocuments")
+
+  // Documents uploaded by this employee/HR user.
+  uploadedDocuments EmployeeDocument[] @relation("UploadedEmployeeDocuments")
 
   leaveBalances LeaveBalance[]
   leaveRequests LeaveRequest[]
@@ -112,10 +159,70 @@ model Employee {
   @@unique([organizationId, employeeId])
 
   // Production query indexes.
+  @@index([organizationId])
   @@index([organizationId, departmentId])
   @@index([organizationId, role])
   @@index([organizationId, status])
   @@index([organizationId, reportsToId])
+}
+
+model EmployeeDocument {
+  id             String                 @id @default(uuid())
+  organizationId String
+  employeeId     String
+  uploadedById   String
+
+  documentType EmployeeDocumentType
+  status       EmployeeDocumentStatus @default(ACTIVE)
+  accessLevel  EmployeeDocumentAccess @default(EMPLOYEE_AND_HR)
+
+  name        String
+  description String?
+
+  // Private object-storage reference.
+  // Never expose this value directly to the client.
+  storageKey String @unique
+
+  // Original filename is metadata only.
+  // It must never be used as the storage filename.
+  originalName String
+
+  mimeType String
+  sizeBytes Int
+  sha256    String
+
+  createdAt TimestamptzString      @default(now())
+  updatedAt temporal.updatedAtString()
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id]
+  )
+
+  employee Employee @relation(
+    "EmployeeDocuments",
+    fields: [employeeId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  uploadedBy Employee @relation(
+    "UploadedEmployeeDocuments",
+    fields: [uploadedById],
+    references: [id],
+    onDelete: Restrict
+  )
+
+  profileFor Employee? @relation(
+    "EmployeeProfilePicture"
+  )
+
+  @@index([organizationId])
+  @@index([organizationId, employeeId])
+  @@index([organizationId, documentType])
+  @@index([organizationId, status])
+  @@index([employeeId, status])
+  @@index([uploadedById])
 }
 
 model LeaveType {
@@ -134,6 +241,7 @@ model LeaveType {
   requests     LeaveRequest[]
 
   @@unique([organizationId, code])
+  @@index([organizationId])
 }
 
 model LeaveBalance {
@@ -151,6 +259,8 @@ model LeaveBalance {
   leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
 
   @@unique([employeeId, leaveTypeId, year])
+  @@index([employeeId])
+  @@index([leaveTypeId])
 }
 
 model LeaveRequest {
@@ -176,10 +286,14 @@ model LeaveRequest {
   department Department?     @relation(fields: [departmentId], references: [id])
   leaveType  LeaveType       @relation(fields: [leaveTypeId], references: [id])
   approvals  LeaveApproval[]
+
+  @@index([employeeId])
+  @@index([departmentId])
+  @@index([leaveTypeId])
 }
 
 model LeaveApproval {
-  id             String           @id @default(uuid())
+  id             String            @id @default(uuid())
   leaveRequestId String
   approverId     String
   action         ApprovalAction
@@ -188,6 +302,9 @@ model LeaveApproval {
 
   leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id])
   approver     Employee     @relation(fields: [approverId], references: [id])
+
+  @@index([leaveRequestId])
+  @@index([approverId])
 }
 
 model ActivationInvitation {
@@ -200,6 +317,8 @@ model ActivationInvitation {
   createdAt  TimestamptzString @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
 }
 
 model OtpVerification {
@@ -213,6 +332,8 @@ model OtpVerification {
   createdAt  TimestamptzString @default(now())
 
   employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
 }
 
 model UserSession {
@@ -228,4 +349,6 @@ model UserSession {
   lastUsedAt        TimestamptzString?
 
   employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
 }

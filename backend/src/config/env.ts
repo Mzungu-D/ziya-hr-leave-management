@@ -45,6 +45,41 @@ const envSchema = z
       .trim()
       .min(1),
 
+    /**
+     * ----------------------------------------------------------------------
+     * Railway Bucket / S3-compatible object storage
+     * ----------------------------------------------------------------------
+     *
+     * Used for employee profile pictures and employee documents.
+     *
+     * These values are intentionally required at application startup.
+     * The application must not start with partially configured storage.
+     */
+
+    S3_ENDPOINT: z
+      .string()
+      .trim()
+      .url(),
+
+    S3_REGION: z
+      .string()
+      .trim()
+      .min(1),
+
+    S3_ACCESS_KEY_ID: z
+      .string()
+      .trim()
+      .min(1),
+
+    S3_SECRET_ACCESS_KEY: z
+      .string()
+      .min(1),
+
+    S3_BUCKET_NAME: z
+      .string()
+      .trim()
+      .min(1),
+
     JWT_ACCESS_SECRET: z
       .string()
       .min(32),
@@ -227,6 +262,7 @@ const envSchema = z
        *
        * If SMTP is configured, all required SMTP credentials must exist.
        */
+
       const smtpConfigured =
         Boolean(
           config.SMTP_HOST ||
@@ -338,6 +374,7 @@ if (!parsed.success) {
  * This prevents individual modules from reading process.env independently
  * and bypassing validation.
  */
+
 export const env =
   Object.freeze(
     parsed.data,
