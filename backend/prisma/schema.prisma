@@ -1,0 +1,231 @@
+// use prisma-8
+
+enum UserRole {
+  EMPLOYEE
+  MANAGER
+  HR_ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  MANAGER_APPROVED
+  HR_APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalAction {
+  APPROVED
+  REJECTED
+}
+
+enum AuthenticationMethod {
+  PASSWORD
+  OTP
+  PASSWORD_AND_OTP
+}
+
+enum OtpPurpose {
+  LOGIN
+  PASSWORD_RESET
+  DEVICE_VERIFICATION
+}
+
+enum InvitationStatus {
+  PENDING
+  USED
+  EXPIRED
+  REVOKED
+}
+
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  code        String       @unique
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  departments Department[]
+  employees   Employee[]
+  leaveTypes  LeaveType[]
+}
+
+model Department {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  code           String
+  createdAt      TimestamptzString @default(now())
+  updatedAt      temporal.updatedAtString()
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  employees     Employee[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([organizationId, code])
+}
+
+model Employee {
+  id                   String               @id @default(uuid())
+  organizationId       String
+  departmentId         String?
+  reportsToId          String?
+  employeeId           String
+  firstName            String
+  lastName             String
+  email                String               @unique
+  phone                String               @unique
+  passwordHash         String?
+  role                 UserRole             @default(EMPLOYEE)
+  status               AccountStatus        @default(PENDING)
+  authenticationMethod AuthenticationMethod @default(PASSWORD_AND_OTP)
+  emailVerified        Boolean              @default(false)
+  phoneVerified        Boolean              @default(false)
+  lastLoginAt          TimestamptzString?
+  createdAt            TimestamptzString    @default(now())
+  updatedAt            temporal.updatedAtString()
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  department   Department?  @relation(fields: [departmentId], references: [id])
+
+  // Employee reporting hierarchy.
+  // An employee may report to another employee.
+  reportsTo     Employee?  @relation("EmployeeReporting", fields: [reportsToId], references: [id], onDelete: SetNull)
+  directReports Employee[] @relation("EmployeeReporting")
+
+  leaveBalances LeaveBalance[]
+  leaveRequests LeaveRequest[]
+  approvals     LeaveApproval[]
+  invitations   ActivationInvitation[]
+  otpRecords    OtpVerification[]
+  sessions      UserSession[]
+
+  // Employee IDs must be unique within an organization.
+  @@unique([organizationId, employeeId])
+
+  // Production query indexes.
+  @@index([organizationId, departmentId])
+  @@index([organizationId, role])
+  @@index([organizationId, status])
+  @@index([organizationId, reportsToId])
+}
+
+model LeaveType {
+  id               String           @id @default(uuid())
+  organizationId   String
+  name             String
+  code             String
+  daysPerYear      Int
+  requiresDocument Boolean          @default(false)
+  isActive         Boolean          @default(true)
+  createdAt        TimestamptzString @default(now())
+  updatedAt        temporal.updatedAtString()
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  balances     LeaveBalance[]
+  requests     LeaveRequest[]
+
+  @@unique([organizationId, code])
+}
+
+model LeaveBalance {
+  id            String           @id @default(uuid())
+  employeeId    String
+  leaveTypeId   String
+  year          Int
+  allocatedDays Int
+  usedDays      Int              @default(0)
+  pendingDays   Int              @default(0)
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveRequest {
+  id                String             @id @default(uuid())
+  employeeId        String
+  departmentId      String?
+  leaveTypeId       String
+  startDate         TimestamptzString
+  endDate           TimestamptzString
+  requestedDays     Int
+  reason            String?
+  attachmentUrl     String?
+  status            LeaveRequestStatus @default(PENDING)
+  submittedAt       TimestamptzString  @default(now())
+  managerApprovedAt TimestamptzString?
+  hrApprovedAt      TimestamptzString?
+  rejectedAt        TimestamptzString?
+  rejectionReason   String?
+  createdAt         TimestamptzString  @default(now())
+  updatedAt         temporal.updatedAtString()
+
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+  department Department?     @relation(fields: [departmentId], references: [id])
+  leaveType  LeaveType       @relation(fields: [leaveTypeId], references: [id])
+  approvals  LeaveApproval[]
+}
+
+model LeaveApproval {
+  id             String           @id @default(uuid())
+  leaveRequestId String
+  approverId     String
+  action         ApprovalAction
+  comments       String?
+  createdAt      TimestamptzString @default(now())
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id])
+  approver     Employee     @relation(fields: [approverId], references: [id])
+}
+
+model ActivationInvitation {
+  id         String           @id @default(uuid())
+  employeeId String
+  tokenHash  String           @unique
+  status     InvitationStatus @default(PENDING)
+  expiresAt  TimestamptzString
+  usedAt     TimestamptzString?
+  createdAt  TimestamptzString @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model OtpVerification {
+  id         String           @id @default(uuid())
+  employeeId String
+  codeHash   String
+  purpose    OtpPurpose
+  expiresAt  TimestamptzString
+  consumedAt TimestamptzString?
+  attempts   Int              @default(0)
+  createdAt  TimestamptzString @default(now())
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}
+
+model UserSession {
+  id                String           @id @default(uuid())
+  employeeId        String
+  refreshTokenHash  String           @unique
+  deviceFingerprint String?
+  ipAddress         String?
+  userAgent         String?
+  expiresAt         TimestamptzString
+  revokedAt         TimestamptzString?
+  createdAt         TimestamptzString @default(now())
+  lastUsedAt        TimestamptzString?
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+}

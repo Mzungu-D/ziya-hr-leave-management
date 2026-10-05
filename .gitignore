@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend local/AI tooling
+backend/.agents/
+backend/.claude/
+backend/.cursor/
+backend/.devin/
+backend/node_modules/
+backend/dist/
+backend/.env
