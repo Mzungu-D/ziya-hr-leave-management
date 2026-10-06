@@ -9,6 +9,7 @@ import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
+import departmentRoutes from "./routes/department.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
 
@@ -198,6 +199,26 @@ app.use(
 app.use(
   "/api/employees",
   employeeRoutes,
+);
+
+/**
+ * --------------------------------------------------------------------------
+ * Department management
+ * --------------------------------------------------------------------------
+ *
+ * Department administration is protected inside department.routes.ts with:
+ *
+ * - Authentication
+ * - HR_ADMIN authorization
+ * - SUPER_ADMIN authorization
+ *
+ * The department controller derives organizationId from the authenticated
+ * employee. It is never accepted from client input.
+ */
+
+app.use(
+  "/api/departments",
+  departmentRoutes,
 );
 
 /**
