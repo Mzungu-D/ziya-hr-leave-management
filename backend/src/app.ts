@@ -10,6 +10,7 @@ import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
+import leaveTypeRoutes from "./routes/leave-type.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
 
@@ -219,6 +220,31 @@ app.use(
 app.use(
   "/api/departments",
   departmentRoutes,
+);
+
+/**
+ * --------------------------------------------------------------------------
+ * Leave type management
+ * --------------------------------------------------------------------------
+ *
+ * Leave types are organization-level HR configuration.
+ *
+ * Access control is enforced inside leave-type.routes.ts:
+ *
+ * - Authentication is required.
+ * - HR_ADMIN and SUPER_ADMIN roles are required.
+ *
+ * The leave-type controller derives organizationId from the authenticated
+ * employee's organization. organizationId is never accepted from client
+ * input.
+ *
+ * Inactive leave types are retained rather than deleted so historical leave
+ * requests and related records remain intact.
+ */
+
+app.use(
+  "/api/leave-types",
+  leaveTypeRoutes,
 );
 
 /**
