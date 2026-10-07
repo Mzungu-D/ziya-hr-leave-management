@@ -25,109 +25,10 @@ interface LeaveUtilizationChartProps {
   subtitle?: string;
 }
 
-const defaultData: LeaveUtilizationData[] = [
-  {
-    month: "Jan",
-    annual: 28,
-    sick: 12,
-    maternity: 7,
-    paternity: 3,
-    other: 4,
-  },
-  {
-    month: "Feb",
-    annual: 32,
-    sick: 15,
-    maternity: 8,
-    paternity: 4,
-    other: 5,
-  },
-  {
-    month: "Mar",
-    annual: 40,
-    sick: 20,
-    maternity: 11,
-    paternity: 5,
-    other: 6,
-  },
-  {
-    month: "Apr",
-    annual: 42,
-    sick: 23,
-    maternity: 13,
-    paternity: 5,
-    other: 7,
-  },
-  {
-    month: "May",
-    annual: 51,
-    sick: 27,
-    maternity: 15,
-    paternity: 6,
-    other: 8,
-  },
-  {
-    month: "Jun",
-    annual: 63,
-    sick: 34,
-    maternity: 18,
-    paternity: 7,
-    other: 10,
-  },
-  {
-    month: "Jul",
-    annual: 71,
-    sick: 32,
-    maternity: 20,
-    paternity: 8,
-    other: 11,
-  },
-  {
-    month: "Aug",
-    annual: 55,
-    sick: 29,
-    maternity: 17,
-    paternity: 7,
-    other: 9,
-  },
-  {
-    month: "Sep",
-    annual: 47,
-    sick: 25,
-    maternity: 14,
-    paternity: 6,
-    other: 8,
-  },
-  {
-    month: "Oct",
-    annual: 43,
-    sick: 23,
-    maternity: 12,
-    paternity: 5,
-    other: 7,
-  },
-  {
-    month: "Nov",
-    annual: 44,
-    sick: 22,
-    maternity: 13,
-    paternity: 5,
-    other: 7,
-  },
-  {
-    month: "Dec",
-    annual: 34,
-    sick: 16,
-    maternity: 10,
-    paternity: 4,
-    other: 5,
-  },
-];
-
 function ChartSkeleton() {
   return (
     <div
-      className="flex h-full min-h-[260px] animate-pulse items-end gap-3 px-4 pb-8 pt-6 sm:min-h-[300px]"
+      className="flex h-full min-h-[260px] animate-pulse items-end gap-3 overflow-hidden px-4 pb-8 pt-6 sm:min-h-[300px]"
       role="status"
       aria-label="Loading leave utilization chart"
     >
@@ -135,7 +36,7 @@ function ChartSkeleton() {
         (height, index) => (
           <div
             key={index}
-            className="flex flex-1 items-end gap-1"
+            className="flex min-w-0 flex-1 items-end gap-1"
           >
             <div
               className="w-full rounded-t bg-slate-200"
@@ -143,11 +44,43 @@ function ChartSkeleton() {
             />
             <div
               className="w-full rounded-t bg-slate-100"
-              style={{ height: `${Math.max(height - 20, 15)}%` }}
+              style={{
+                height: `${Math.max(height - 20, 15)}%`,
+              }}
             />
           </div>
         ),
       )}
+
+      <span className="sr-only">
+        Loading leave utilization data
+      </span>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex h-full min-h-[260px] items-center justify-center px-4 sm:min-h-[300px]">
+      <div className="text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+          <span
+            className="text-lg font-bold text-slate-400"
+            aria-hidden="true"
+          >
+            —
+          </span>
+        </div>
+
+        <p className="mt-3 text-sm font-semibold text-slate-700">
+          No utilization data
+        </p>
+
+        <p className="mt-1 max-w-[260px] text-xs leading-5 text-slate-400">
+          Leave utilization will appear here once leave
+          activity is available.
+        </p>
+      </div>
     </div>
   );
 }
@@ -159,8 +92,8 @@ function CustomTooltip({
 }: {
   active?: boolean;
   payload?: Array<{
-    name: string;
-    value: number;
+    name?: string;
+    value?: number;
   }>;
   label?: string;
 }) {
@@ -169,57 +102,78 @@ function CustomTooltip({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-      <p className="mb-2 text-xs font-bold text-slate-900">
-        {label}
+    <div className="max-w-[calc(100vw-32px)] rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
+      <p className="mb-2 truncate text-xs font-bold text-slate-900">
+        {label ?? "Period"}
       </p>
 
       <div className="space-y-1.5">
-        {payload.map((item) => (
-          <div
-            key={item.name}
-            className="flex items-center justify-between gap-6 text-xs"
-          >
-            <span className="text-slate-500">{item.name}</span>
+        {payload.map((item) => {
+          const value = Number(item.value ?? 0);
 
-            <span className="font-semibold text-slate-800">
-              {item.value} days
-            </span>
-          </div>
-        ))}
+          return (
+            <div
+              key={item.name ?? "leave"}
+              className="flex items-center justify-between gap-4 text-xs"
+            >
+              <span className="truncate text-slate-500">
+                {item.name ?? "Leave"}
+              </span>
+
+              <span className="shrink-0 font-semibold text-slate-800">
+                {value.toLocaleString()} days
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
 export function LeaveUtilizationChart({
-  data = defaultData,
+  data = [],
   loading = false,
   title = "Leave Utilization",
   subtitle = "Monthly leave usage",
 }: LeaveUtilizationChartProps) {
+  const safeData = Array.isArray(data)
+    ? data.filter(
+        (item) =>
+          item &&
+          typeof item.month === "string" &&
+          [
+            item.annual,
+            item.sick,
+            item.maternity,
+            item.paternity,
+            item.other,
+          ].some((value) => Number(value) > 0),
+      )
+    : [];
+
   return (
     <section
-      className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+      className="min-w-0 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
       aria-labelledby="leave-utilization-title"
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2
             id="leave-utilization-title"
-            className="text-base font-bold text-slate-900 sm:text-lg"
+            className="truncate text-base font-bold text-slate-900 sm:text-lg"
           >
             {title}
           </h2>
 
-          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+          <p className="mt-0.5 truncate text-xs text-slate-500 sm:text-sm">
             {subtitle}
           </p>
         </div>
 
         <select
           aria-label="Leave utilization period"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 sm:w-auto"
+          className="h-9 w-full shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 sm:w-auto"
           defaultValue="this-year"
         >
           <option value="this-year">This year</option>
@@ -227,17 +181,20 @@ export function LeaveUtilizationChart({
         </select>
       </div>
 
-      <div className="h-[300px] w-full min-w-0">
+      <div className="h-[280px] w-full min-w-0 sm:h-[300px]">
         {loading ? (
           <ChartSkeleton />
+        ) : safeData.length === 0 ? (
+          <EmptyState />
         ) : (
           <ResponsiveContainer
             width="100%"
             height="100%"
             minWidth={0}
+            minHeight={0}
           >
             <BarChart
-              data={data}
+              data={safeData}
               margin={{
                 top: 8,
                 right: 8,
@@ -261,6 +218,7 @@ export function LeaveUtilizationChart({
                   fill: "#64748b",
                 }}
                 dy={8}
+                interval="preserveStartEnd"
               />
 
               <YAxis
@@ -271,6 +229,7 @@ export function LeaveUtilizationChart({
                   fill: "#64748b",
                 }}
                 width={35}
+                allowDecimals={false}
               />
 
               <Tooltip
@@ -288,6 +247,7 @@ export function LeaveUtilizationChart({
                 wrapperStyle={{
                   fontSize: "11px",
                   paddingTop: "18px",
+                  maxWidth: "100%",
                 }}
               />
 
@@ -297,6 +257,7 @@ export function LeaveUtilizationChart({
                 fill="#2f80ed"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
+                isAnimationActive={false}
               />
 
               <Bar
@@ -305,6 +266,7 @@ export function LeaveUtilizationChart({
                 fill="#43b581"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
+                isAnimationActive={false}
               />
 
               <Bar
@@ -313,6 +275,7 @@ export function LeaveUtilizationChart({
                 fill="#f2778a"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
+                isAnimationActive={false}
               />
 
               <Bar
@@ -321,6 +284,7 @@ export function LeaveUtilizationChart({
                 fill="#8b6fe8"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
+                isAnimationActive={false}
               />
 
               <Bar
@@ -329,6 +293,7 @@ export function LeaveUtilizationChart({
                 fill="#f4bd42"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={22}
+                isAnimationActive={false}
               />
             </BarChart>
           </ResponsiveContainer>

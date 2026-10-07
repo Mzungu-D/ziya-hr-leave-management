@@ -1,313 +1,380 @@
 import {
   Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Clock3,
-  Database,
+  Building2,
+  FileText,
   ShieldCheck,
   Users,
 } from "lucide-react";
 
-export interface SystemOverviewData {
-  totalEmployees: number;
-  activeEmployees: number;
-  pendingApprovals: number;
-  approvedRequests: number;
-  systemAlerts: number;
-  departments: number;
-  leaveTypes: number;
-  systemStatus: "Operational" | "Degraded" | "Maintenance";
-  lastUpdated?: string;
-}
+import type {
+  AdminDashboardData,
+  AdminDashboardStatus,
+} from "../../services/adminDashboard.service";
+
+export type SystemOverviewData =
+  AdminDashboardData["systemOverview"];
 
 interface SystemOverviewProps {
   data?: SystemOverviewData;
   loading?: boolean;
-  title?: string;
-  subtitle?: string;
+  onAdminsClick?: () => void;
+  onManagersClick?: () => void;
   onEmployeesClick?: () => void;
-  onApprovalsClick?: () => void;
-  onAlertsClick?: () => void;
+  onLeaveTypesClick?: () => void;
+  onDepartmentsClick?: () => void;
 }
 
-const defaultData: SystemOverviewData = {
-  totalEmployees: 126,
-  activeEmployees: 118,
-  pendingApprovals: 8,
-  approvedRequests: 342,
-  systemAlerts: 0,
-  departments: 9,
-  leaveTypes: 6,
-  systemStatus: "Operational",
-  lastUpdated: "Updated just now",
-};
-
-function OverviewSkeleton() {
-  return (
-    <div
-      className="animate-pulse"
-      role="status"
-      aria-label="Loading system overview"
-    >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            key={index}
-            className="rounded-xl border border-slate-100 p-3"
-          >
-            <div className="h-8 w-8 rounded-lg bg-slate-200" />
-            <div className="mt-3 h-3 w-20 rounded bg-slate-200" />
-            <div className="mt-2 h-6 w-14 rounded bg-slate-100" />
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 h-16 rounded-xl bg-slate-100" />
-    </div>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  iconClassName,
-  onClick,
-}: {
+interface OverviewCardProps {
   icon: typeof Users;
   label: string;
   value: number;
-  iconClassName: string;
+  description?: string;
   onClick?: () => void;
-}) {
-  const content = (
-    <>
-      <div
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}
-        aria-hidden="true"
-      >
-        <Icon size={17} strokeWidth={2} />
-      </div>
-
-      <div className="mt-3 min-w-0">
-        <p
-          title={label}
-          className="truncate text-[11px] font-medium text-slate-500"
-        >
-          {label}
-        </p>
-
-        <p
-          title={String(value)}
-          className="mt-0.5 truncate text-xl font-bold tracking-tight text-slate-900"
-        >
-          {value.toLocaleString()}
-        </p>
-      </div>
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="min-w-0 rounded-xl border border-slate-100 p-3 text-left transition hover:border-slate-200 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
-        aria-label={`${label}: ${value}`}
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-100 p-3">
-      {content}
-    </div>
-  );
+  iconClassName: string;
+  iconBackgroundClassName: string;
 }
 
-function getStatusStyles(
-  status: SystemOverviewData["systemStatus"],
-) {
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value) || value < 0) {
+    return "0";
+  }
+
+  return value.toLocaleString("en-KE");
+}
+
+function getStatusConfig(status: AdminDashboardStatus) {
   switch (status) {
-    case "Operational":
+    case "OPERATIONAL":
       return {
-        iconClassName: "bg-emerald-50 text-emerald-600",
+        label: "Operational",
+        description:
+          "All HR services are operating normally.",
         badgeClassName:
-          "bg-emerald-50 text-emerald-700 ring-emerald-600/10",
-        label: "All systems operational",
+          "border-emerald-200 bg-emerald-50 text-emerald-700",
+        dotClassName: "bg-emerald-500",
       };
 
-    case "Degraded":
+    case "DEGRADED":
       return {
-        iconClassName: "bg-amber-50 text-amber-600",
+        label: "Degraded",
+        description:
+          "Some HR services may be experiencing issues.",
         badgeClassName:
-          "bg-amber-50 text-amber-700 ring-amber-600/10",
-        label: "Some services need attention",
+          "border-amber-200 bg-amber-50 text-amber-700",
+        dotClassName: "bg-amber-500",
       };
 
-    case "Maintenance":
+    case "OFFLINE":
       return {
-        iconClassName: "bg-blue-50 text-blue-600",
+        label: "Offline",
+        description:
+          "HR services are currently unavailable.",
         badgeClassName:
-          "bg-blue-50 text-blue-700 ring-blue-600/10",
-        label: "Scheduled maintenance",
+          "border-red-200 bg-red-50 text-red-700",
+        dotClassName: "bg-red-500",
       };
 
     default:
       return {
-        iconClassName: "bg-slate-50 text-slate-600",
+        label: "Unavailable",
+        description:
+          "System status is currently unavailable.",
         badgeClassName:
-          "bg-slate-50 text-slate-700 ring-slate-600/10",
-        label: "System status unavailable",
+          "border-slate-200 bg-slate-50 text-slate-600",
+        dotClassName: "bg-slate-400",
       };
   }
 }
 
+function OverviewCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  onClick,
+  iconClassName,
+  iconBackgroundClassName,
+}: OverviewCardProps) {
+  const content = (
+    <div
+      className={[
+        "min-w-0 w-full rounded-xl border border-slate-100",
+        "bg-slate-50 p-3 transition",
+        onClick
+          ? "hover:border-slate-200 hover:bg-slate-100/70 hover:shadow-sm"
+          : "",
+      ].join(" ")}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-2">
+        <div
+          className={[
+            "flex h-9 w-9 shrink-0 items-center",
+            "justify-center rounded-lg",
+            iconBackgroundClassName,
+          ].join(" ")}
+        >
+          <Icon
+            size={18}
+            className={iconClassName}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
+        </div>
+
+        {onClick && (
+          <span
+            className="shrink-0 text-xs font-medium text-slate-400"
+            aria-hidden="true"
+          >
+            View
+          </span>
+        )}
+      </div>
+
+      <p className="mt-3 truncate text-2xl font-bold tracking-tight text-slate-900">
+        {formatNumber(value)}
+      </p>
+
+      <p className="mt-1 truncate text-xs font-semibold text-slate-600">
+        {label}
+      </p>
+
+      {description && (
+        <p className="mt-1 truncate text-[11px] leading-4 text-slate-400">
+          {description}
+        </p>
+      )}
+    </div>
+  );
+
+  if (!onClick) {
+    return content;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full min-w-0 text-left"
+      aria-label={`View ${label}`}
+    >
+      {content}
+    </button>
+  );
+}
+
+function LoadingCard() {
+  return (
+    <div className="min-w-0 w-full rounded-xl border border-slate-100 bg-slate-50 p-3">
+      <div className="h-9 w-9 animate-pulse rounded-lg bg-slate-200" />
+
+      <div className="mt-3 h-7 w-14 animate-pulse rounded bg-slate-200" />
+
+      <div className="mt-2 h-3 w-24 animate-pulse rounded bg-slate-200" />
+
+      <div className="mt-2 h-3 w-20 animate-pulse rounded bg-slate-200" />
+    </div>
+  );
+}
+
 export function SystemOverview({
-  data = defaultData,
+  data,
   loading = false,
-  title = "System Overview",
-  subtitle = "HR platform status and activity",
+  onAdminsClick,
+  onManagersClick,
   onEmployeesClick,
-  onApprovalsClick,
-  onAlertsClick,
+  onLeaveTypesClick,
+  onDepartmentsClick,
 }: SystemOverviewProps) {
-  const statusStyles = getStatusStyles(data.systemStatus);
+  const statusConfig = data
+    ? getStatusConfig(data.systemStatus)
+    : null;
 
   return (
     <section
-      className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
       aria-labelledby="system-overview-title"
+      className="min-w-0 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
     >
-      <div className="mb-4">
-        <h2
-          id="system-overview-title"
-          className="text-base font-bold text-slate-900 sm:text-lg"
-        >
-          {title}
-        </h2>
+      {/* ================================================================
+          HEADER
+      ================================================================= */}
+      <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+            <Activity
+              size={19}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
+          </div>
 
-        <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
-          {subtitle}
-        </p>
+          <div className="min-w-0">
+            <h2
+              id="system-overview-title"
+              className="truncate text-base font-bold text-slate-900 sm:text-lg"
+            >
+              System Overview
+            </h2>
+
+            <p className="mt-1 text-xs leading-5 text-slate-500 sm:text-sm">
+              Current HR system and workforce configuration
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div
+            className="h-8 w-28 animate-pulse rounded-full bg-slate-100"
+            aria-hidden="true"
+          />
+        ) : statusConfig ? (
+          <div
+            className={[
+              "inline-flex w-fit shrink-0 items-center gap-2",
+              "rounded-full border px-3 py-1.5",
+              "text-xs font-semibold",
+              statusConfig.badgeClassName,
+            ].join(" ")}
+          >
+            <span
+              className={[
+                "h-2 w-2 shrink-0 rounded-full",
+                statusConfig.dotClassName,
+              ].join(" ")}
+              aria-hidden="true"
+            />
+
+            <span>{statusConfig.label}</span>
+          </div>
+        ) : null}
       </div>
 
+      {/* ================================================================
+          LOADING
+      ================================================================= */}
       {loading ? (
-        <OverviewSkeleton />
+        <div
+          className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+          aria-label="Loading system overview"
+          aria-busy="true"
+        >
+          <LoadingCard />
+          <LoadingCard />
+          <LoadingCard />
+          <LoadingCard />
+          <LoadingCard />
+        </div>
+      ) : !data ? (
+        /* ================================================================
+           EMPTY / UNAVAILABLE
+        ================================================================= */
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+          <Activity
+            size={24}
+            className="mx-auto text-slate-400"
+            aria-hidden="true"
+          />
+
+          <p className="mt-3 text-sm font-semibold text-slate-700">
+            System overview unavailable
+          </p>
+
+          <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">
+            The HR dashboard did not return system overview
+            data from the production service.
+          </p>
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard
+          {/* ================================================================
+              OVERVIEW CARDS
+          ================================================================= */}
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <OverviewCard
+              icon={ShieldCheck}
+              label="Active Admins"
+              value={data.activeAdmins}
+              description="Administrator accounts"
+              onClick={onAdminsClick}
+              iconClassName="text-emerald-600"
+              iconBackgroundClassName="bg-emerald-50"
+            />
+
+            <OverviewCard
               icon={Users}
-              label="Total Employees"
-              value={data.totalEmployees}
-              iconClassName="bg-blue-50 text-blue-600"
+              label="Managers"
+              value={data.managers}
+              description="Manager accounts"
+              onClick={onManagersClick}
+              iconClassName="text-blue-600"
+              iconBackgroundClassName="bg-blue-50"
+            />
+
+            <OverviewCard
+              icon={Users}
+              label="Employees"
+              value={data.employees}
+              description="Employee accounts"
               onClick={onEmployeesClick}
+              iconClassName="text-violet-600"
+              iconBackgroundClassName="bg-violet-50"
             />
 
-            <MetricCard
-              icon={Clock3}
-              label="Pending Approvals"
-              value={data.pendingApprovals}
-              iconClassName="bg-amber-50 text-amber-600"
-              onClick={onApprovalsClick}
+            <OverviewCard
+              icon={FileText}
+              label="Leave Types"
+              value={data.leaveTypes}
+              description="Configured leave types"
+              onClick={onLeaveTypesClick}
+              iconClassName="text-orange-600"
+              iconBackgroundClassName="bg-orange-50"
             />
 
-            <MetricCard
-              icon={CheckCircle2}
-              label="Approved Requests"
-              value={data.approvedRequests}
-              iconClassName="bg-emerald-50 text-emerald-600"
-            />
-
-            <MetricCard
-              icon={AlertTriangle}
-              label="System Alerts"
-              value={data.systemAlerts}
-              iconClassName={
-                data.systemAlerts > 0
-                  ? "bg-red-50 text-red-600"
-                  : "bg-slate-100 text-slate-500"
-              }
-              onClick={onAlertsClick}
+            <OverviewCard
+              icon={Building2}
+              label="Departments"
+              value={data.departments}
+              description="Configured departments"
+              onClick={onDepartmentsClick}
+              iconClassName="text-pink-600"
+              iconBackgroundClassName="bg-pink-50"
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex min-w-0 items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${statusStyles.iconClassName}`}
-              >
-                <ShieldCheck size={17} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-slate-400">
-                  Platform status
+          {/* ================================================================
+              SYSTEM STATUS
+          ================================================================= */}
+          {statusConfig && (
+            <div className="mt-5 flex min-w-0 flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  System Status
                 </p>
 
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                <div className="mt-1 flex min-w-0 items-center gap-2">
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold ring-1 ring-inset ${statusStyles.badgeClassName}`}
-                  >
-                    <span
-                      className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                        data.systemStatus === "Operational"
-                          ? "bg-emerald-500"
-                          : data.systemStatus === "Degraded"
-                            ? "bg-amber-500"
-                            : "bg-blue-500"
-                      }`}
-                      aria-hidden="true"
-                    />
+                    className={[
+                      "h-2 w-2 shrink-0 rounded-full",
+                      statusConfig.dotClassName,
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
 
-                    {data.systemStatus}
-                  </span>
-
-                  <span className="truncate text-[11px] text-slate-500">
-                    {statusStyles.label}
-                  </span>
+                  <p className="truncate text-sm font-semibold text-slate-700">
+                    {statusConfig.label}
+                  </p>
                 </div>
               </div>
+
+              <p className="min-w-0 text-xs leading-5 text-slate-500 sm:max-w-md sm:text-right">
+                {statusConfig.description}
+              </p>
             </div>
-
-            <div className="flex min-w-0 items-center gap-3 rounded-xl bg-slate-50 p-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
-                <Database size={17} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-slate-400">
-                  Organization setup
-                </p>
-
-                <p className="mt-1 truncate text-xs font-semibold text-slate-700">
-                  {data.departments} departments · {data.leaveTypes} leave
-                  types
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <Activity size={14} className="text-slate-400" />
-
-              <span>
-                {data.activeEmployees.toLocaleString()} active employees
-              </span>
-            </div>
-
-            {data.lastUpdated && (
-              <span className="text-[11px] text-slate-400">
-                {data.lastUpdated}
-              </span>
-            )}
-          </div>
+          )}
         </>
       )}
     </section>
   );
 }
+
+export default SystemOverview;

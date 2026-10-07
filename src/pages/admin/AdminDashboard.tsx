@@ -205,7 +205,9 @@ function normalizeRequestStatus(
 }
 
 function mapRecentLeaveRequests(
-  requests: AdminDashboardData["recentLeaveRequests"] | undefined,
+  requests:
+    | AdminDashboardData["recentLeaveRequests"]
+    | undefined,
 ): RecentLeaveRequest[] | undefined {
   if (!requests) {
     return undefined;
@@ -246,7 +248,9 @@ function normalizeUpcomingEventType(
 }
 
 function mapUpcomingEvents(
-  events: AdminDashboardData["upcomingEvents"] | undefined,
+  events:
+    | AdminDashboardData["upcomingEvents"]
+    | undefined,
 ): UpcomingEvent[] | undefined {
   if (!events) {
     return undefined;
@@ -291,7 +295,9 @@ function mapAnnouncements(
  * analytics endpoint with the monthly chart contract.
  */
 function mapLeaveUtilization(
-  data: AdminDashboardData["leaveUtilization"] | undefined,
+  data:
+    | AdminDashboardData["leaveUtilization"]
+    | undefined,
 ) {
   if (!data || data.length === 0) {
     return undefined;
@@ -314,8 +320,14 @@ function mapLeaveUtilization(
       month: "Current",
       annual: findType("Annual", "Annual Leave"),
       sick: findType("Sick", "Sick Leave"),
-      maternity: findType("Maternity", "Maternity Leave"),
-      paternity: findType("Paternity", "Paternity Leave"),
+      maternity: findType(
+        "Maternity",
+        "Maternity Leave",
+      ),
+      paternity: findType(
+        "Paternity",
+        "Paternity Leave",
+      ),
       other: data
         .filter((entry) => {
           const name = entry.name.trim().toLowerCase();
@@ -340,6 +352,22 @@ function mapLeaveUtilization(
   ];
 }
 
+/**
+ * Maps the production API SystemOverview contract to the
+ * SystemOverview component contract.
+ *
+ * IMPORTANT:
+ * This must remain aligned with AdminDashboardData["systemOverview"].
+ * The API uses:
+ *   activeAdmins
+ *   managers
+ *   employees
+ *   leaveTypes
+ *   departments
+ *   systemStatus
+ *
+ * No demo/default values are introduced here.
+ */
 function mapSystemOverview(
   dashboard: AdminDashboardData | null,
 ): SystemOverviewData | undefined {
@@ -354,48 +382,36 @@ function mapSystemOverview(
 
   switch (status) {
     case "DEGRADED":
-      systemStatus = "Degraded";
+      systemStatus = "DEGRADED";
       break;
 
     case "OFFLINE":
-      systemStatus = "Maintenance";
+      systemStatus = "OFFLINE";
       break;
 
     case "OPERATIONAL":
     default:
-      systemStatus = "Operational";
+      systemStatus = "OPERATIONAL";
       break;
   }
 
   return {
-    totalEmployees:
-      dashboard.summary.totalEmployees,
+    activeAdmins:
+      Number(dashboard.systemOverview.activeAdmins) || 0,
 
-    activeEmployees:
-      dashboard.summary.activeEmployees,
+    managers:
+      Number(dashboard.systemOverview.managers) || 0,
 
-    pendingApprovals:
-      dashboard.summary.pendingApprovals,
-
-    approvedRequests:
-      dashboard.summary.approvedThisMonth,
-
-    systemAlerts:
-      status === "OPERATIONAL" ? 0 : 1,
-
-    departments:
-      dashboard.systemOverview.departments,
+    employees:
+      Number(dashboard.systemOverview.employees) || 0,
 
     leaveTypes:
-      dashboard.systemOverview.leaveTypes,
+      Number(dashboard.systemOverview.leaveTypes) || 0,
+
+    departments:
+      Number(dashboard.systemOverview.departments) || 0,
 
     systemStatus,
-
-    lastUpdated: dashboard.generatedAt
-      ? `Updated ${formatGeneratedAt(
-          dashboard.generatedAt,
-        )}`
-      : undefined,
   };
 }
 
@@ -558,7 +574,7 @@ export function AdminDashboard() {
                 </h1>
 
                 {systemOverview?.systemStatus ===
-                  "Operational" && (
+                  "OPERATIONAL" && (
                   <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                     <CheckCircle2 size={13} />
                     Operational
@@ -677,7 +693,8 @@ export function AdminDashboard() {
               data={dashboard?.leaveRequestsTrend?.map(
                 (item) => ({
                   month: item.month,
-                  submitted: Number(item.total) || 0,
+                  submitted:
+                    Number(item.total) || 0,
                   approved:
                     Number(item.approved) || 0,
                   rejected:

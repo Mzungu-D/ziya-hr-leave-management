@@ -22,41 +22,30 @@ interface LeaveRequestsTrendProps {
   subtitle?: string;
 }
 
-const defaultData: LeaveRequestsTrendData[] = [
-  { month: "Jan", submitted: 42, approved: 35, rejected: 4 },
-  { month: "Feb", submitted: 48, approved: 39, rejected: 5 },
-  { month: "Mar", submitted: 56, approved: 46, rejected: 6 },
-  { month: "Apr", submitted: 51, approved: 43, rejected: 4 },
-  { month: "May", submitted: 67, approved: 55, rejected: 7 },
-  { month: "Jun", submitted: 74, approved: 61, rejected: 8 },
-  { month: "Jul", submitted: 82, approved: 69, rejected: 6 },
-  { month: "Aug", submitted: 71, approved: 59, rejected: 7 },
-  { month: "Sep", submitted: 64, approved: 54, rejected: 5 },
-  { month: "Oct", submitted: 59, approved: 50, rejected: 4 },
-  { month: "Nov", submitted: 53, approved: 45, rejected: 4 },
-  { month: "Dec", submitted: 47, approved: 41, rejected: 3 },
-];
-
 function ChartSkeleton() {
   return (
     <div
-      className="flex h-full min-h-[260px] animate-pulse items-end gap-2 px-4 pb-8 pt-6 sm:min-h-[300px]"
+      className="flex h-full min-h-[240px] animate-pulse items-end gap-2 px-2 pb-8 pt-6 sm:min-h-[280px] sm:px-4"
       role="status"
       aria-label="Loading leave request trend"
     >
-      {[38, 55, 48, 67, 58, 76, 69, 61, 73, 52, 64, 46].map(
-        (height, index) => (
+      {Array.from({ length: 12 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex h-full min-w-0 flex-1 items-end"
+        >
           <div
-            key={index}
-            className="flex h-full flex-1 items-end"
-          >
-            <div
-              className="w-full rounded-t-lg bg-slate-200"
-              style={{ height: `${height}%` }}
-            />
-          </div>
-        ),
-      )}
+            className="w-full rounded-t-lg bg-slate-200"
+            style={{
+              height: `${35 + ((index * 17) % 45)}%`,
+            }}
+          />
+        </div>
+      ))}
+
+      <span className="sr-only">
+        Loading leave request activity
+      </span>
     </div>
   );
 }
@@ -87,25 +76,26 @@ function CustomTooltip({
   };
 
   return (
-    <div className="min-w-[170px] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
+    <div className="min-w-[160px] max-w-[calc(100vw-32px)] rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
       <p className="mb-2 text-xs font-bold text-slate-900">
-        {label}
+        {label || "Period"}
       </p>
 
       <div className="space-y-2">
-        {payload.map((item) => {
-          const key = String(item.name ?? "");
+        {payload.map((item, index) => {
+          const key = String(item.name ?? index);
 
           return (
             <div
-              key={key}
-              className="flex items-center justify-between gap-5 text-xs"
+              key={`${key}-${index}`}
+              className="flex items-center justify-between gap-4 text-xs"
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: item.color ?? "#94a3b8",
+                    backgroundColor:
+                      item.color ?? "#94a3b8",
                   }}
                   aria-hidden="true"
                 />
@@ -115,8 +105,8 @@ function CustomTooltip({
                 </span>
               </div>
 
-              <span className="font-semibold text-slate-800">
-                {item.value ?? 0}
+              <span className="shrink-0 font-semibold text-slate-800">
+                {Number(item.value) || 0}
               </span>
             </div>
           );
@@ -127,17 +117,21 @@ function CustomTooltip({
 }
 
 export function LeaveRequestsTrend({
-  data = defaultData,
+  data = [],
   loading = false,
   title = "Leave Requests",
   subtitle = "Leave request activity throughout the year",
 }: LeaveRequestsTrendProps) {
+  const chartData = Array.isArray(data)
+    ? data
+    : [];
+
   return (
     <section
-      className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+      className="min-w-0 w-full rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
       aria-labelledby="leave-requests-trend-title"
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mb-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2
             id="leave-requests-trend-title"
@@ -146,7 +140,7 @@ export function LeaveRequestsTrend({
             {title}
           </h2>
 
-          <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">
+          <p className="mt-0.5 text-xs leading-5 text-slate-500 sm:text-sm">
             {subtitle}
           </p>
         </div>
@@ -156,23 +150,25 @@ export function LeaveRequestsTrend({
           defaultValue="this-year"
           className="h-9 w-full shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 sm:w-auto"
         >
-          <option value="this-year">This year</option>
-          <option value="last-year">Last year</option>
+          <option value="this-year">
+            This year
+          </option>
         </select>
       </div>
 
-      <div className="h-[300px] w-full min-w-0">
+      <div className="h-[260px] w-full min-w-0 sm:h-[300px]">
         {loading ? (
           <ChartSkeleton />
-        ) : data.length === 0 ? (
-          <div className="flex h-full min-h-[260px] items-center justify-center">
+        ) : chartData.length === 0 ? (
+          <div className="flex h-full min-h-[240px] items-center justify-center px-4">
             <div className="text-center">
               <p className="text-sm font-semibold text-slate-700">
                 No leave request data
               </p>
 
-              <p className="mt-1 text-xs text-slate-400">
-                Request activity will appear here once data is available.
+              <p className="mt-1 max-w-xs text-xs leading-5 text-slate-400">
+                Leave request activity will appear here once
+                your organization has recorded requests.
               </p>
             </div>
           </div>
@@ -181,9 +177,10 @@ export function LeaveRequestsTrend({
             width="100%"
             height="100%"
             minWidth={0}
+            minHeight={0}
           >
             <AreaChart
-              data={data}
+              data={chartData}
               margin={{
                 top: 10,
                 right: 8,
@@ -193,7 +190,7 @@ export function LeaveRequestsTrend({
             >
               <defs>
                 <linearGradient
-                  id="submittedGradient"
+                  id="leaveSubmittedGradient"
                   x1="0"
                   y1="0"
                   x2="0"
@@ -204,6 +201,7 @@ export function LeaveRequestsTrend({
                     stopColor="#2f80ed"
                     stopOpacity={0.2}
                   />
+
                   <stop
                     offset="100%"
                     stopColor="#2f80ed"
@@ -212,7 +210,7 @@ export function LeaveRequestsTrend({
                 </linearGradient>
 
                 <linearGradient
-                  id="approvedGradient"
+                  id="leaveApprovedGradient"
                   x1="0"
                   y1="0"
                   x2="0"
@@ -223,6 +221,7 @@ export function LeaveRequestsTrend({
                     stopColor="#43b581"
                     stopOpacity={0.16}
                   />
+
                   <stop
                     offset="100%"
                     stopColor="#43b581"
@@ -241,6 +240,8 @@ export function LeaveRequestsTrend({
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
+                interval="preserveStartEnd"
+                minTickGap={12}
                 tick={{
                   fontSize: 11,
                   fill: "#64748b",
@@ -273,7 +274,7 @@ export function LeaveRequestsTrend({
                 name="submitted"
                 stroke="#2f80ed"
                 strokeWidth={2.5}
-                fill="url(#submittedGradient)"
+                fill="url(#leaveSubmittedGradient)"
                 dot={false}
                 activeDot={{
                   r: 5,
@@ -288,7 +289,7 @@ export function LeaveRequestsTrend({
                 name="approved"
                 stroke="#43b581"
                 strokeWidth={2.5}
-                fill="url(#approvedGradient)"
+                fill="url(#leaveApprovedGradient)"
                 dot={false}
                 activeDot={{
                   r: 5,
@@ -316,7 +317,7 @@ export function LeaveRequestsTrend({
         )}
       </div>
 
-      {!loading && data.length > 0 && (
+      {!loading && chartData.length > 0 && (
         <div className="mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-100 pt-3">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <span
