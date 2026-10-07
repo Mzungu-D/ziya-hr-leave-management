@@ -227,6 +227,11 @@ app.use(
  * Any route that has not been registered above reaches this middleware.
  */
 
+
+app.use(
+  "/api/admin",
+  adminDashboardRoutes,
+);
 app.use(notFoundHandler);
 
 /**
@@ -240,3 +245,4 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 export default app;
+
