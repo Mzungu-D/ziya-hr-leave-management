@@ -9,8 +9,7 @@ import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
-import departmentRoutes from "./routes/department.routes.js";
-import leaveTypeRoutes from "./routes/leave-type.routes.js";
+import leaveRoutes from "./routes/leave.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
 
@@ -204,47 +203,19 @@ app.use(
 
 /**
  * --------------------------------------------------------------------------
- * Department management
+ * Leave management
  * --------------------------------------------------------------------------
  *
- * Department administration is protected inside department.routes.ts with:
+ * Authentication and role authorization are handled inside
+ * leave.routes.ts.
  *
- * - Authentication
- * - HR_ADMIN authorization
- * - SUPER_ADMIN authorization
- *
- * The department controller derives organizationId from the authenticated
- * employee. It is never accepted from client input.
+ * Organization scope is derived server-side from the authenticated
+ * employee and is never accepted from client input.
  */
 
 app.use(
-  "/api/departments",
-  departmentRoutes,
-);
-
-/**
- * --------------------------------------------------------------------------
- * Leave type management
- * --------------------------------------------------------------------------
- *
- * Leave types are organization-level HR configuration.
- *
- * Access control is enforced inside leave-type.routes.ts:
- *
- * - Authentication is required.
- * - HR_ADMIN and SUPER_ADMIN roles are required.
- *
- * The leave-type controller derives organizationId from the authenticated
- * employee's organization. organizationId is never accepted from client
- * input.
- *
- * Inactive leave types are retained rather than deleted so historical leave
- * requests and related records remain intact.
- */
-
-app.use(
-  "/api/leave-types",
-  leaveTypeRoutes,
+  "/api/leave",
+  leaveRoutes,
 );
 
 /**
