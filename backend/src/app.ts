@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -10,6 +10,7 @@ import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import leaveRoutes from "./routes/leave.routes.js";
+import adminDashboardRoutes from "./routes/adminDashboard.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
 
