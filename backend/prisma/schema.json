@@ -393,6 +393,13 @@
                   "kind": "scalar"
                 }
               },
+              "departmentLeadId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -423,6 +430,22 @@
               }
             },
             "relations": {
+              "departmentLead": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "departmentLeadId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
               "employees": {
                 "cardinality": "1:N",
                 "on": {
@@ -477,6 +500,9 @@
                 },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "departmentLeadId": {
+                  "column": "departmentLeadId"
                 },
                 "id": {
                   "column": "id"
@@ -723,6 +749,21 @@
                 },
                 "to": {
                   "model": "ActivationInvitation",
+                  "namespace": "public"
+                }
+              },
+              "leadDepartments": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "departmentLeadId"
+                  ]
+                },
+                "to": {
+                  "model": "Department",
                   "namespace": "public"
                 }
               },
@@ -2300,6 +2341,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "departmentLeadId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "id": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -2337,9 +2383,43 @@
                     "namespaceId": "public",
                     "tableName": "Organization"
                   }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "departmentLeadId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Department"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  }
                 }
               ],
               "indexes": [
+                {
+                  "columns": [
+                    "departmentLeadId"
+                  ],
+                  "name": "Department_departmentLeadId_idx_3e7e9cfd",
+                  "prefix": "Department_departmentLeadId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "departmentLeadId"
+                  ],
+                  "name": "Department_organizationId_departmentLeadId_idx_a8c4d16a",
+                  "prefix": "Department_organizationId_departmentLeadId_idx",
+                  "unique": false
+                },
                 {
                   "columns": [
                     "organizationId"
@@ -3823,7 +3903,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "2522cd9bed1079eb41f751f4314117097090437518d5bf95f20f4ffb607e9da0"
+    "storageHash": "76c8d0f3f6f2fa79c58c7d371f612adda87dc8a089be64d4f80b142900b9a1d2"
   },
   "execution": {
     "executionHash": "88cc5f474f75da3f90dcfb2665d66e017ad9d0b3c843a84d66d492320c6ed95c",

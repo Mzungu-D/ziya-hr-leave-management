@@ -1,0 +1,164 @@
+[
+  {
+    "id": "column.public.Department.departmentLeadId",
+    "label": "Add column \"departmentLeadId\" to \"Department\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "departmentLeadId",
+        "table": "Department"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"departmentLeadId\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Department",
+          "departmentLeadId"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"departmentLeadId\"",
+        "sql": "ALTER TABLE \"public\".\"Department\" ADD COLUMN \"departmentLeadId\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"departmentLeadId\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Department",
+          "departmentLeadId"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Department.Department_departmentLeadId_idx_3e7e9cfd",
+    "label": "Create index \"Department_departmentLeadId_idx_3e7e9cfd\" on \"Department\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Department_departmentLeadId_idx_3e7e9cfd",
+        "table": "Department"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Department_departmentLeadId_idx_3e7e9cfd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Department_departmentLeadId_idx_3e7e9cfd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Department_departmentLeadId_idx_3e7e9cfd\"",
+        "sql": "CREATE INDEX \"Department_departmentLeadId_idx_3e7e9cfd\" ON \"public\".\"Department\" (\"departmentLeadId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Department_departmentLeadId_idx_3e7e9cfd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Department_departmentLeadId_idx_3e7e9cfd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Department.Department_organizationId_departmentLeadId_idx_a8c4d16a",
+    "label": "Create index \"Department_organizationId_departmentLeadId_idx_a8c4d16a\" on \"Department\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Department_organizationId_departmentLeadId_idx_a8c4d16a",
+        "table": "Department"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Department_organizationId_departmentLeadId_idx_a8c4d16a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Department_organizationId_departmentLeadId_idx_a8c4d16a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Department_organizationId_departmentLeadId_idx_a8c4d16a\"",
+        "sql": "CREATE INDEX \"Department_organizationId_departmentLeadId_idx_a8c4d16a\" ON \"public\".\"Department\" (\"organizationId\", \"departmentLeadId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Department_organizationId_departmentLeadId_idx_a8c4d16a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Department_organizationId_departmentLeadId_idx_a8c4d16a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Department.Department_departmentLeadId_fkey",
+    "label": "Add foreign key \"Department_departmentLeadId_fkey\" on \"Department\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Department_departmentLeadId_fkey",
+        "table": "Department"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Department_departmentLeadId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Department_departmentLeadId_fkey",
+          "public",
+          "\"public\".\"Department\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Department_departmentLeadId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Department\"\nADD CONSTRAINT \"Department_departmentLeadId_fkey\"\nFOREIGN KEY (\"departmentLeadId\")\nREFERENCES \"public\".\"Employee\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Department_departmentLeadId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Department_departmentLeadId_fkey",
+          "public",
+          "\"public\".\"Department\""
+        ]
+      }
+    ]
+  }
+]

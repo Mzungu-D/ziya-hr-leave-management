@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'2522cd9bed1079eb41f751f4314117097090437518d5bf95f20f4ffb607e9da0'>;
+  StorageHashBase<'76c8d0f3f6f2fa79c58c7d371f612adda87dc8a089be64d4f80b142900b9a1d2'>;
 export type ExecutionHash =
   ExecutionHashBase<'88cc5f474f75da3f90dcfb2665d66e017ad9d0b3c843a84d66d492320c6ed95c'>;
 export type ProfileHash =
@@ -262,6 +262,7 @@ export type FieldOutputTypes = {
     readonly Department: {
       readonly code: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly departmentLeadId: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly organizationId: CodecTypes['pg/text@1']['output'];
@@ -412,6 +413,7 @@ export type FieldInputTypes = {
     readonly Department: {
       readonly code: CodecTypes['pg/text@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly departmentLeadId: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly organizationId: CodecTypes['pg/text@1']['input'];
@@ -562,6 +564,7 @@ export type StorageColumnTypes = {
     readonly Department: {
       readonly code: CodecTypes['pg/text@1']['output'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly departmentLeadId: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly organizationId: CodecTypes['pg/text@1']['output'];
@@ -712,6 +715,7 @@ export type StorageColumnInputTypes = {
     readonly Department: {
       readonly code: CodecTypes['pg/text@1']['input'];
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly departmentLeadId: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly organizationId: CodecTypes['pg/text@1']['input'];
@@ -864,14 +868,16 @@ export namespace Models {
   export type public_Department = {
     code: CodecTypes['pg/text@1']['output'];
     createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    departmentLeadId: CodecTypes['pg/text@1']['output'] | null;
     id: CodecTypes['pg/text@1']['output'];
     name: CodecTypes['pg/text@1']['output'];
     organizationId: CodecTypes['pg/text@1']['output'];
     updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    departmentLead: public_Employee | null;
     employees: public_Employee[];
     leaveRequests: public_LeaveRequest[];
     organization: public_Organization;
-    readonly [RelationKeys]?: 'employees' | 'leaveRequests' | 'organization';
+    readonly [RelationKeys]?: 'departmentLead' | 'employees' | 'leaveRequests' | 'organization';
   };
   export type public_Employee = {
     authenticationMethod: 'PASSWORD' | 'OTP' | 'PASSWORD_AND_OTP';
@@ -898,6 +904,7 @@ export namespace Models {
     directReports: public_Employee[];
     documents: public_EmployeeDocument[];
     invitations: public_ActivationInvitation[];
+    leadDepartments: public_Department[];
     leaveBalances: public_LeaveBalance[];
     leaveRequests: public_LeaveRequest[];
     organization: public_Organization;
@@ -912,6 +919,7 @@ export namespace Models {
       | 'directReports'
       | 'documents'
       | 'invitations'
+      | 'leadDepartments'
       | 'leaveBalances'
       | 'leaveRequests'
       | 'organization'
@@ -1175,6 +1183,11 @@ type ContractBase = Omit<
                   readonly nullable: false;
                   readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
                 };
+                readonly departmentLeadId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
                 readonly id: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
@@ -1200,6 +1213,18 @@ type ContractBase = Omit<
               uniques: readonly [{ readonly columns: readonly ['organizationId', 'code'] }];
               indexes: readonly [
                 {
+                  readonly name: 'Department_departmentLeadId_idx_3e7e9cfd';
+                  readonly prefix: 'Department_departmentLeadId_idx';
+                  readonly columns: readonly ['departmentLeadId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Department_organizationId_departmentLeadId_idx_a8c4d16a';
+                  readonly prefix: 'Department_organizationId_departmentLeadId_idx';
+                  readonly columns: readonly ['organizationId', 'departmentLeadId'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Department_organizationId_idx_2e17ef41';
                   readonly prefix: 'Department_organizationId_idx';
                   readonly columns: readonly ['organizationId'];
@@ -1216,6 +1241,18 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'Organization';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Department';
+                    readonly columns: readonly ['departmentLeadId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -2424,6 +2461,10 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/timestamptz-string@1';
                 };
               };
+              readonly departmentLeadId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly id: {
                 readonly nullable: false;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -2445,6 +2486,18 @@ type ContractBase = Omit<
               };
             };
             readonly relations: {
+              readonly departmentLead: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['departmentLeadId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
               readonly employees: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -2486,6 +2539,7 @@ type ContractBase = Omit<
               readonly fields: {
                 readonly code: { readonly column: 'code' };
                 readonly createdAt: { readonly column: 'createdAt' };
+                readonly departmentLeadId: { readonly column: 'departmentLeadId' };
                 readonly id: { readonly column: 'id' };
                 readonly name: { readonly column: 'name' };
                 readonly organizationId: { readonly column: 'organizationId' };
@@ -2636,6 +2690,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['employeeId'];
+                };
+              };
+              readonly leadDepartments: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Department';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['departmentLeadId'];
                 };
               };
               readonly leaveBalances: {

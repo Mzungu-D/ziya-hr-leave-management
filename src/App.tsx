@@ -9,9 +9,10 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider } from "./contexts/AuthContext";
 
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { EmployeeDashboard } from "./pages/employee/EmployeeDashboard";
 import { Login } from "./pages/auth/Login";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { LeaveTypes } from "./pages/admin/LeaveTypes";
+import { EmployeeDashboard } from "./pages/employee/EmployeeDashboard";
 
 function App() {
   return (
@@ -59,6 +60,29 @@ function App() {
               >
                 <AppShell>
                   <AdminDashboard />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =====================================================
+              Leave Types
+              -----------------------------------------------------
+              Leave Types are organization-scoped by the backend.
+              The frontend does not accept or send organizationId.
+          ====================================================== */}
+
+          <Route
+            path="/admin/leave-types"
+            element={
+              <ProtectedRoute
+                allowedRoles={[
+                  "HR_ADMIN",
+                  "SUPER_ADMIN",
+                ]}
+              >
+                <AppShell>
+                  <LeaveTypes />
                 </AppShell>
               </ProtectedRoute>
             }

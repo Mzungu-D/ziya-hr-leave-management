@@ -92,15 +92,39 @@ model Department {
   organizationId String
   name           String
   code           String
+
+  // Explicit department leadership.
+  // Nullable so existing departments can continue to exist
+  // until an administrator assigns a department lead.
+  departmentLeadId String?
+
   createdAt      TimestamptzString @default(now())
   updatedAt      temporal.updatedAtString()
 
   organization  Organization @relation(fields: [organizationId], references: [id])
+
+  // Employees assigned to this department.
   employees     Employee[]
+
+  // Explicit department lead.
+  //
+  // The backend must validate that the selected employee:
+  // 1. belongs to the same organization;
+  // 2. belongs to this department;
+  // 3. is ACTIVE;
+  // 4. has an appropriate management/HR role.
+  departmentLead Employee? @relation(
+    "DepartmentLead",
+    fields: [departmentLeadId],
+    references: [id],
+    onDelete: SetNull
+  )
+
   leaveRequests LeaveRequest[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
+  @@index([organizationId, departmentLeadId])
 }
 
 model Employee {
@@ -128,11 +152,28 @@ model Employee {
   profilePictureDocumentId String? @unique
 
   organization Organization @relation(fields: [organizationId], references: [id])
-  department   Department?  @relation(fields: [departmentId], references: [id])
+
+  department Department? @relation(
+    fields: [departmentId],
+    references: [id]
+  )
 
   // Employee reporting hierarchy.
-  reportsTo     Employee?  @relation("EmployeeReporting", fields: [reportsToId], references: [id], onDelete: SetNull)
+  reportsTo     Employee?  @relation(
+    "EmployeeReporting",
+    fields: [reportsToId],
+    references: [id],
+    onDelete: SetNull
+  )
+
   directReports Employee[] @relation("EmployeeReporting")
+
+  // Departments where this employee is the designated department lead.
+  //
+  // This is intentionally separate from:
+  // - department: the department the employee belongs to;
+  // - reportsTo: the employee's reporting manager.
+  leadDepartments Department[] @relation("DepartmentLead")
 
   // Current profile picture.
   profilePictureDocument EmployeeDocument? @relation(

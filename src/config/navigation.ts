@@ -52,6 +52,14 @@ export const adminNavigation: NavigationItem[] = [
     roles: ["HR_ADMIN", "SUPER_ADMIN", "MANAGER"],
   },
   {
+    key: "leave-types",
+    label: "Leave Types",
+    href: "/admin/leave-types",
+    icon: FileText,
+    description: "Configure available leave types and entitlements",
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
+  },
+  {
     key: "approvals",
     label: "Approvals",
     href: "/admin/approvals",

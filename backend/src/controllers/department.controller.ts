@@ -28,24 +28,48 @@ const departmentNameSchema =
     .string()
     .trim()
     .min(1, "Department name is required.")
-    .max(120, "Department name must not exceed 120 characters.");
+    .max(
+      120,
+      "Department name must not exceed 120 characters.",
+    );
 
 const departmentCodeSchema =
   z
     .string()
     .trim()
     .min(1, "Department code is required.")
-    .max(50, "Department code must not exceed 50 characters.")
+    .max(
+      50,
+      "Department code must not exceed 50 characters.",
+    )
     .regex(
       /^[A-Za-z0-9](?:[A-Za-z0-9_-]*[A-Za-z0-9])?$/,
       "Department code may contain only letters, numbers, underscores, and hyphens, and must start and end with a letter or number.",
     );
 
+const departmentLeadIdSchema =
+  z
+    .string()
+    .trim()
+    .min(
+      1,
+      "Department lead ID cannot be empty.",
+    )
+    .max(
+      255,
+      "Department lead ID is invalid.",
+    );
+
+/**
+ * Department creation deliberately does not accept departmentLeadId.
+ *
+ * A department lead must already belong to the department, but the department
+ * does not exist until creation completes.
+ */
 const createDepartmentSchema =
   z
     .object({
       name: departmentNameSchema,
-
       code: departmentCodeSchema,
     })
     .strict();
@@ -58,12 +82,18 @@ const updateDepartmentSchema =
 
       code:
         departmentCodeSchema.optional(),
+
+      departmentLeadId:
+        departmentLeadIdSchema
+          .nullable()
+          .optional(),
     })
     .strict()
     .refine(
       (value) =>
         value.name !== undefined ||
-        value.code !== undefined,
+        value.code !== undefined ||
+        value.departmentLeadId !== undefined,
       {
         message:
           "At least one department field must be provided.",
@@ -290,6 +320,9 @@ export async function updateDepartmentController(
 
         code:
           body.code,
+
+        departmentLeadId:
+          body.departmentLeadId,
       },
     );
 

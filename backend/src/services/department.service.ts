@@ -1,17 +1,29 @@
 import { randomUUID } from "node:crypto";
 
 import { db } from "../../prisma/db.js";
+
 import { AppError } from "../middleware/error.middleware.js";
 
 /* -------------------------------------------------------------------------- */
 /* Public types                                                               */
 /* -------------------------------------------------------------------------- */
 
+export interface DepartmentLeadPublicRecord {
+  id: string;
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: "MANAGER" | "HR_ADMIN" | "SUPER_ADMIN";
+  status: string;
+}
+
 export interface DepartmentPublicRecord {
   id: string;
   organizationId: string;
   name: string;
   code: string;
+  departmentLead: DepartmentLeadPublicRecord | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,11 +37,13 @@ export interface CreateDepartmentParams {
   organizationId: string;
   name: string;
   code: string;
+  departmentLeadId?: string | null;
 }
 
 export interface UpdateDepartmentParams {
   name?: string;
   code?: string;
+  departmentLeadId?: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -38,28 +52,19 @@ export interface UpdateDepartmentParams {
 
 const MAX_DEPARTMENT_NAME_LENGTH = 120;
 const MAX_DEPARTMENT_CODE_LENGTH = 50;
+const MAX_DEPARTMENT_ID_LENGTH = 255;
 
-/*
- * Department codes are deliberately restricted to a predictable identifier
- * format. This prevents invisible/control characters and ambiguous values
- * from entering the organization master data.
- */
 const DEPARTMENT_CODE_PATTERN =
   /^[A-Z0-9](?:[A-Z0-9_-]*[A-Z0-9])?$/;
 
-/*
- * These characters are never valid in organization master-data names.
- *
- * We still permit normal Unicode names such as:
- *
- * - Finance & Accounting
- * - Human Resources
- * - Équipe Finance
- *
- * while rejecting control characters and line separators.
- */
 const CONTROL_CHARACTER_PATTERN =
   /[\u0000-\u001F\u007F\u0080-\u009F\u2028\u2029]/u;
+
+const DEPARTMENT_LEAD_ROLES = new Set([
+  "MANAGER",
+  "HR_ADMIN",
+  "SUPER_ADMIN",
+]);
 
 /* -------------------------------------------------------------------------- */
 /* Required identifiers                                                       */
@@ -68,9 +73,7 @@ const CONTROL_CHARACTER_PATTERN =
 function requireOrganizationId(
   organizationId: string,
 ): string {
-  if (
-    typeof organizationId !== "string"
-  ) {
+  if (typeof organizationId !== "string") {
     throw new AppError(
       400,
       "Organization ID is required.",
@@ -78,8 +81,7 @@ function requireOrganizationId(
     );
   }
 
-  const normalized =
-    organizationId.trim();
+  const normalized = organizationId.trim();
 
   if (!normalized) {
     throw new AppError(
@@ -89,9 +91,7 @@ function requireOrganizationId(
     );
   }
 
-  if (
-    normalized.length > 255
-  ) {
+  if (normalized.length > MAX_DEPARTMENT_ID_LENGTH) {
     throw new AppError(
       400,
       "Organization ID is invalid.",
@@ -99,11 +99,7 @@ function requireOrganizationId(
     );
   }
 
-  if (
-    CONTROL_CHARACTER_PATTERN.test(
-      normalized,
-    )
-  ) {
+  if (CONTROL_CHARACTER_PATTERN.test(normalized)) {
     throw new AppError(
       400,
       "Organization ID is invalid.",
@@ -117,9 +113,7 @@ function requireOrganizationId(
 function requireDepartmentId(
   departmentId: string,
 ): string {
-  if (
-    typeof departmentId !== "string"
-  ) {
+  if (typeof departmentId !== "string") {
     throw new AppError(
       400,
       "Department ID is required.",
@@ -127,8 +121,7 @@ function requireDepartmentId(
     );
   }
 
-  const normalized =
-    departmentId.trim();
+  const normalized = departmentId.trim();
 
   if (!normalized) {
     throw new AppError(
@@ -138,9 +131,7 @@ function requireDepartmentId(
     );
   }
 
-  if (
-    normalized.length > 255
-  ) {
+  if (normalized.length > MAX_DEPARTMENT_ID_LENGTH) {
     throw new AppError(
       400,
       "Department ID is invalid.",
@@ -148,15 +139,59 @@ function requireDepartmentId(
     );
   }
 
-  if (
-    CONTROL_CHARACTER_PATTERN.test(
-      normalized,
-    )
-  ) {
+  if (CONTROL_CHARACTER_PATTERN.test(normalized)) {
     throw new AppError(
       400,
       "Department ID is invalid.",
       "DEPARTMENT_ID_INVALID",
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeOptionalDepartmentLeadId(
+  departmentLeadId: string | null | undefined,
+): string | null | undefined {
+  if (departmentLeadId === undefined) {
+    return undefined;
+  }
+
+  if (departmentLeadId === null) {
+    return null;
+  }
+
+  if (typeof departmentLeadId !== "string") {
+    throw new AppError(
+      400,
+      "Department lead ID is invalid.",
+      "DEPARTMENT_LEAD_ID_INVALID",
+    );
+  }
+
+  const normalized = departmentLeadId.trim();
+
+  if (!normalized) {
+    throw new AppError(
+      400,
+      "Department lead ID is invalid.",
+      "DEPARTMENT_LEAD_ID_INVALID",
+    );
+  }
+
+  if (normalized.length > MAX_DEPARTMENT_ID_LENGTH) {
+    throw new AppError(
+      400,
+      "Department lead ID is invalid.",
+      "DEPARTMENT_LEAD_ID_INVALID",
+    );
+  }
+
+  if (CONTROL_CHARACTER_PATTERN.test(normalized)) {
+    throw new AppError(
+      400,
+      "Department lead ID is invalid.",
+      "DEPARTMENT_LEAD_ID_INVALID",
     );
   }
 
@@ -170,9 +205,7 @@ function requireDepartmentId(
 function normalizeDepartmentName(
   name: string,
 ): string {
-  if (
-    typeof name !== "string"
-  ) {
+  if (typeof name !== "string") {
     throw new AppError(
       400,
       "Department name is required.",
@@ -180,11 +213,10 @@ function normalizeDepartmentName(
     );
   }
 
-  const normalized =
-    name
-      .normalize("NFC")
-      .trim()
-      .replace(/\s+/gu, " ");
+  const normalized = name
+    .normalize("NFC")
+    .trim()
+    .replace(/\s+/gu, " ");
 
   if (!normalized) {
     throw new AppError(
@@ -194,10 +226,7 @@ function normalizeDepartmentName(
     );
   }
 
-  if (
-    normalized.length >
-    MAX_DEPARTMENT_NAME_LENGTH
-  ) {
+  if (normalized.length > MAX_DEPARTMENT_NAME_LENGTH) {
     throw new AppError(
       400,
       `Department name must not exceed ${MAX_DEPARTMENT_NAME_LENGTH} characters.`,
@@ -205,11 +234,7 @@ function normalizeDepartmentName(
     );
   }
 
-  if (
-    CONTROL_CHARACTER_PATTERN.test(
-      normalized,
-    )
-  ) {
+  if (CONTROL_CHARACTER_PATTERN.test(normalized)) {
     throw new AppError(
       400,
       "Department name contains invalid characters.",
@@ -227,9 +252,7 @@ function normalizeDepartmentName(
 function normalizeDepartmentCode(
   code: string,
 ): string {
-  if (
-    typeof code !== "string"
-  ) {
+  if (typeof code !== "string") {
     throw new AppError(
       400,
       "Department code is required.",
@@ -237,11 +260,10 @@ function normalizeDepartmentCode(
     );
   }
 
-  const normalized =
-    code
-      .normalize("NFC")
-      .trim()
-      .toUpperCase();
+  const normalized = code
+    .normalize("NFC")
+    .trim()
+    .toUpperCase();
 
   if (!normalized) {
     throw new AppError(
@@ -251,10 +273,7 @@ function normalizeDepartmentCode(
     );
   }
 
-  if (
-    normalized.length >
-    MAX_DEPARTMENT_CODE_LENGTH
-  ) {
+  if (normalized.length > MAX_DEPARTMENT_CODE_LENGTH) {
     throw new AppError(
       400,
       `Department code must not exceed ${MAX_DEPARTMENT_CODE_LENGTH} characters.`,
@@ -262,11 +281,7 @@ function normalizeDepartmentCode(
     );
   }
 
-  if (
-    !DEPARTMENT_CODE_PATTERN.test(
-      normalized,
-    )
-  ) {
+  if (!DEPARTMENT_CODE_PATTERN.test(normalized)) {
     throw new AppError(
       400,
       "Department code must contain only letters, numbers, underscores, and hyphens, and must start and end with a letter or number.",
@@ -278,7 +293,7 @@ function normalizeDepartmentCode(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Organization validation                                                   */
+/* Organization validation                                                    */
 /* -------------------------------------------------------------------------- */
 
 async function assertOrganizationExists(
@@ -304,12 +319,6 @@ async function assertOrganizationExists(
 /* Department lookup                                                          */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Every department lookup is organization-scoped.
- *
- * This is critical for tenant isolation. A caller can never retrieve or
- * modify a department simply by knowing its ID.
- */
 async function findDepartmentById(
   organizationId: string,
   departmentId: string,
@@ -323,16 +332,75 @@ async function findDepartmentById(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Duplicate protection                                                      */
+/* Department lead validation                                                  */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Department names are not protected by a database uniqueness constraint in
- * the current production contract.
+ * Validates the department lead against the tenant and department boundaries.
  *
- * We therefore perform an application-level duplicate check. The database
- * remains the final authority for the unique department code.
+ * This is deliberately enforced in application code because the database
+ * foreign key can verify that the Employee exists, but cannot by itself
+ * enforce:
+ *
+ * - same organization;
+ * - same department;
+ * - ACTIVE status;
+ * - appropriate organizational role.
  */
+async function validateDepartmentLead(
+  organizationId: string,
+  departmentId: string,
+  departmentLeadId: string | null,
+): Promise<void> {
+  if (departmentLeadId === null) {
+    return;
+  }
+
+  const employee =
+    await db.orm.public.Employee
+      .where({
+        id: departmentLeadId,
+        organizationId,
+      })
+      .first();
+
+  if (!employee) {
+    throw new AppError(
+      400,
+      "The selected department lead does not belong to this organization.",
+      "DEPARTMENT_LEAD_ORGANIZATION_MISMATCH",
+    );
+  }
+
+  if (employee.departmentId !== departmentId) {
+    throw new AppError(
+      400,
+      "The department lead must belong to the department.",
+      "DEPARTMENT_LEAD_DEPARTMENT_MISMATCH",
+    );
+  }
+
+  if (employee.status !== "ACTIVE") {
+    throw new AppError(
+      400,
+      "The department lead must be an active employee.",
+      "DEPARTMENT_LEAD_INACTIVE",
+    );
+  }
+
+  if (!DEPARTMENT_LEAD_ROLES.has(employee.role)) {
+    throw new AppError(
+      400,
+      "The selected employee cannot be a department lead.",
+      "DEPARTMENT_LEAD_ROLE_INVALID",
+    );
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Duplicate protection                                                       */
+/* -------------------------------------------------------------------------- */
+
 async function ensureDepartmentNameAvailable(
   organizationId: string,
   name: string,
@@ -345,36 +413,28 @@ async function ensureDepartmentNameAvailable(
       })
       .all();
 
-  const normalizedName =
-    name
-      .normalize("NFC")
-      .trim()
-      .replace(/\s+/gu, " ")
-      .toLocaleLowerCase();
+  const normalizedName = name
+    .normalize("NFC")
+    .trim()
+    .replace(/\s+/gu, " ")
+    .toLocaleLowerCase();
 
-  const duplicate =
-    departments.some(
-      (department) => {
-        if (
-          department.id ===
-          excludeDepartmentId
-        ) {
-          return false;
-        }
+  const duplicate = departments.some(
+    (department) => {
+      if (department.id === excludeDepartmentId) {
+        return false;
+      }
 
-        const existingName =
-          department.name
-            .normalize("NFC")
-            .trim()
-            .replace(/\s+/gu, " ")
-            .toLocaleLowerCase();
+      const existingName =
+        department.name
+          .normalize("NFC")
+          .trim()
+          .replace(/\s+/gu, " ")
+          .toLocaleLowerCase();
 
-        return (
-          existingName ===
-          normalizedName
-        );
-      },
-    );
+      return existingName === normalizedName;
+    },
+  );
 
   if (duplicate) {
     throw new AppError(
@@ -400,8 +460,7 @@ async function ensureDepartmentCodeAvailable(
 
   if (
     department &&
-    department.id !==
-      excludeDepartmentId
+    department.id !== excludeDepartmentId
   ) {
     throw new AppError(
       409,
@@ -412,45 +471,79 @@ async function ensureDepartmentCodeAvailable(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Department lead DTO                                                        */
+/* -------------------------------------------------------------------------- */
+
+async function getDepartmentLead(
+  departmentLeadId: string | null | undefined,
+): Promise<DepartmentLeadPublicRecord | null> {
+  if (!departmentLeadId) {
+    return null;
+  }
+
+  const employee =
+    await db.orm.public.Employee
+      .where({
+        id: departmentLeadId,
+      })
+      .first();
+
+  if (!employee) {
+    /*
+     * The FK should normally make this impossible. Returning null keeps
+     * responses safe if legacy/corrupt data is encountered.
+     */
+    return null;
+  }
+
+  if (!DEPARTMENT_LEAD_ROLES.has(employee.role)) {
+    return null;
+  }
+
+  return {
+    id: employee.id,
+    employeeId: employee.employeeId,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    email: employee.email,
+    role: employee.role as DepartmentLeadPublicRecord["role"],
+    status: employee.status,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Public DTO                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function toPublicDepartment(
+async function toPublicDepartment(
   department: {
     id: string;
     organizationId: string;
     name: string;
     code: string;
+    departmentLeadId?: string | null;
     createdAt: string;
     updatedAt: string;
   },
-): DepartmentPublicRecord {
+): Promise<DepartmentPublicRecord> {
   return {
     id: department.id,
-    organizationId:
-      department.organizationId,
+    organizationId: department.organizationId,
     name: department.name,
     code: department.code,
-    createdAt:
-      department.createdAt,
-    updatedAt:
-      department.updatedAt,
+    departmentLead:
+      await getDepartmentLead(
+        department.departmentLeadId,
+      ),
+    createdAt: department.createdAt,
+    updatedAt: department.updatedAt,
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Database constraint translation                                            */
+/* Database constraint translation                                             */
 /* -------------------------------------------------------------------------- */
 
-/**
- * The current database contract has a unique constraint on:
- *
- *   (organizationId, code)
- *
- * It does NOT have a database constraint on department name.
- *
- * We therefore translate only the constraint that actually exists.
- */
 function translateDepartmentConstraintError(
   error: unknown,
 ): never {
@@ -471,21 +564,10 @@ function translateDepartmentConstraintError(
     );
   }
 
-  /*
-   * Some PostgreSQL/driver errors expose the constraint name differently.
-   * Keep the matching deliberately narrow so unrelated database failures
-   * are never incorrectly reported as duplicate departments.
-   */
   if (
-    /unique constraint/i.test(
-      message,
-    ) &&
-    /organizationId/i.test(
-      message,
-    ) &&
-    /code/i.test(
-      message,
-    )
+    /unique constraint/i.test(message) &&
+    /organizationId/i.test(message) &&
+    /code/i.test(message)
   ) {
     throw new AppError(
       409,
@@ -498,7 +580,7 @@ function translateDepartmentConstraintError(
 }
 
 /* -------------------------------------------------------------------------- */
-/* List departments                                                           */
+/* List departments                                                            */
 /* -------------------------------------------------------------------------- */
 
 export async function listDepartments(
@@ -517,18 +599,22 @@ export async function listDepartments(
       })
       .all();
 
-  return {
-    departments:
+  const publicDepartments =
+    await Promise.all(
       departments.map(
-        toPublicDepartment,
+        (department) =>
+          toPublicDepartment(department),
       ),
-    total:
-      departments.length,
+    );
+
+  return {
+    departments: publicDepartments,
+    total: publicDepartments.length,
   };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Get department                                                             */
+/* Get department                                                              */
 /* -------------------------------------------------------------------------- */
 
 export async function getDepartment(
@@ -565,7 +651,7 @@ export async function getDepartment(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Create department                                                          */
+/* Create department                                                           */
 /* -------------------------------------------------------------------------- */
 
 export async function createDepartment(
@@ -590,6 +676,11 @@ export async function createDepartment(
       params.code,
     );
 
+  const departmentLeadId =
+    normalizeOptionalDepartmentLeadId(
+      params.departmentLeadId,
+    );
+
   await ensureDepartmentNameAvailable(
     organizationId,
     name,
@@ -603,6 +694,21 @@ export async function createDepartment(
   const departmentId =
     randomUUID();
 
+  /*
+   * Validate the lead before creating the department.
+   *
+   * A lead must already belong to the department, therefore a new department
+   * cannot be created with a lead in one atomic create operation unless that
+   * employee is already assigned to this department.
+   */
+  if (departmentLeadId) {
+    await validateDepartmentLead(
+      organizationId,
+      departmentId,
+      departmentLeadId,
+    );
+  }
+
   try {
     await db.orm.public.Department
       .create({
@@ -610,6 +716,8 @@ export async function createDepartment(
         organizationId,
         name,
         code,
+        departmentLeadId:
+          departmentLeadId ?? null,
       });
   } catch (error) {
     translateDepartmentConstraintError(
@@ -637,7 +745,7 @@ export async function createDepartment(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Update department                                                          */
+/* Update department                                                           */
 /* -------------------------------------------------------------------------- */
 
 export async function updateDepartment(
@@ -675,9 +783,13 @@ export async function updateDepartment(
   const hasCode =
     params.code !== undefined;
 
+  const hasDepartmentLead =
+    params.departmentLeadId !== undefined;
+
   if (
     !hasName &&
-    !hasCode
+    !hasCode &&
+    !hasDepartmentLead
   ) {
     throw new AppError(
       400,
@@ -689,6 +801,7 @@ export async function updateDepartment(
   const updateData: {
     name?: string;
     code?: string;
+    departmentLeadId?: string | null;
   } = {};
 
   if (hasName) {
@@ -719,6 +832,24 @@ export async function updateDepartment(
     );
 
     updateData.code = code;
+  }
+
+  if (hasDepartmentLead) {
+    const departmentLeadId =
+      normalizeOptionalDepartmentLeadId(
+        params.departmentLeadId,
+      );
+
+    if (departmentLeadId) {
+      await validateDepartmentLead(
+        normalizedOrganizationId,
+        normalizedDepartmentId,
+        departmentLeadId,
+      );
+    }
+
+    updateData.departmentLeadId =
+      departmentLeadId ?? null;
   }
 
   try {
@@ -757,7 +888,7 @@ export async function updateDepartment(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Delete department                                                          */
+/* Delete department                                                           */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -769,7 +900,7 @@ export async function updateDepartment(
  * 1. employees are currently assigned to the department;
  * 2. leave requests reference the department.
  *
- * The database foreign key remains the final safety boundary.
+ * The database foreign keys remain the final safety boundary.
  */
 export async function deleteDepartment(
   organizationId: string,
@@ -842,25 +973,14 @@ export async function deleteDepartment(
       })
       .delete();
   } catch (error) {
-    /*
-     * Never expose the raw database error.
-     *
-     * A concurrent employee/leave assignment can appear between the
-     * protection checks above and this delete. The database constraint is
-     * therefore still the authoritative final protection.
-     */
     const message =
       error instanceof Error
         ? error.message
         : "";
 
     if (
-      /foreign key/i.test(
-        message,
-      ) ||
-      /violates.*constraint/i.test(
-        message,
-      )
+      /foreign key/i.test(message) ||
+      /violates.*constraint/i.test(message)
     ) {
       throw new AppError(
         409,
