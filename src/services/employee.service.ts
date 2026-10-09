@@ -9,48 +9,24 @@
  * - organizationId is never supplied by the frontend as a scope selector.
  * - The backend derives organization scope from the authenticated employee.
  * - Authenticated employee responses are never browser-cached.
- * - The backend remains the authoritative source for authorization,
- *   organization isolation, employee status, role and department rules.
+ * - The backend remains authoritative for authorization, organization
+ *   isolation, employee status, role and department rules.
  *
- * Current verified backend contract:
+ * Verified backend contract:
  *
- * GET /api/employees
- * GET /api/employees/:employeeId
- *
- * The employee list response is:
- *
- * {
- *   employees: EmployeePublicRecord[],
- *   total: number
- * }
- *
- * The backend EmployeePublicRecord contains:
- * - id
- * - organizationId
- * - employeeId
- * - firstName
- * - lastName
- * - email
- * - phone
- * - role
- * - status
- * - authenticationMethod
- * - emailVerified
- * - phoneVerified
- * - department
- * - reportsTo
- * - createdAt
- * - updatedAt
- *
- * IMPORTANT:
- * This service does not invent employee mutation endpoints.
- * Employee mutation support can be added after the exact backend
- * mutation contracts are deliberately verified.
+ * GET    /api/employees
+ * GET    /api/employees/:employeeId
+ * POST   /api/employees
+ * PATCH  /api/employees/:employeeId
+ * PATCH  /api/employees/:employeeId/department
+ * PATCH  /api/employees/:employeeId/reporting-manager
+ * PATCH  /api/employees/:employeeId/role
+ * PATCH  /api/employees/:employeeId/status
  */
 
-/* =========================================================
-   API CONFIGURATION
-========================================================= */
+/* ========================================================================== */
+/* API CONFIGURATION                                                          */
+/* ========================================================================== */
 
 const DEFAULT_API_BASE_URL =
   "https://ziya-hr-api-production.up.railway.app";
@@ -67,20 +43,32 @@ const API_BASE_URL = (
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/* =========================================================
-   ENDPOINTS
-========================================================= */
+/* ========================================================================== */
+/* ENDPOINTS                                                                  */
+/* ========================================================================== */
 
 const EMPLOYEE_ENDPOINTS = {
   collection: "/api/employees",
 
   item: (employeeId: string) =>
     `/api/employees/${encodeURIComponent(employeeId)}`,
+
+  department: (employeeId: string) =>
+    `/api/employees/${encodeURIComponent(employeeId)}/department`,
+
+  reportingManager: (employeeId: string) =>
+    `/api/employees/${encodeURIComponent(employeeId)}/reporting-manager`,
+
+  role: (employeeId: string) =>
+    `/api/employees/${encodeURIComponent(employeeId)}/role`,
+
+  status: (employeeId: string) =>
+    `/api/employees/${encodeURIComponent(employeeId)}/status`,
 } as const;
 
-/* =========================================================
-   DOMAIN TYPES
-========================================================= */
+/* ========================================================================== */
+/* DOMAIN TYPES                                                               */
+/* ========================================================================== */
 
 export type EmployeeRole =
   | "EMPLOYEE"
@@ -99,9 +87,9 @@ export type EmployeeAuthenticationMethod =
   | "OTP"
   | "PASSWORD_AND_OTP";
 
-/* =========================================================
-   NESTED EMPLOYEE TYPES
-========================================================= */
+/* ========================================================================== */
+/* NESTED EMPLOYEE TYPES                                                      */
+/* ========================================================================== */
 
 export interface EmployeeDepartment {
   id: string;
@@ -118,33 +106,34 @@ export interface EmployeeReportsTo {
   role: EmployeeRole;
 }
 
-/* =========================================================
-   PUBLIC EMPLOYEE RECORD
-========================================================= */
+/* ========================================================================== */
+/* PUBLIC EMPLOYEE RECORD                                                      */
+/* ========================================================================== */
 
-/**
- * Safe employee representation returned by the backend.
- *
- * Authentication secrets are intentionally absent.
- */
 export interface EmployeePublicRecord {
   id: string;
+
   organizationId: string;
+
   employeeId: string;
 
   firstName: string;
+
   lastName: string;
 
   email: string;
+
   phone: string;
 
   role: EmployeeRole;
+
   status: EmployeeStatus;
 
   authenticationMethod:
     EmployeeAuthenticationMethod;
 
   emailVerified: boolean;
+
   phoneVerified: boolean;
 
   department:
@@ -156,21 +145,97 @@ export interface EmployeePublicRecord {
     | null;
 
   createdAt: string;
+
   updatedAt: string;
 }
 
-/* =========================================================
-   LIST RESPONSE
-========================================================= */
+/* ========================================================================== */
+/* LIST RESPONSE                                                              */
+/* ========================================================================== */
 
 export interface EmployeeListResult {
   employees: EmployeePublicRecord[];
   total: number;
 }
 
-/* =========================================================
-   SERVICE ERROR
-========================================================= */
+/* ========================================================================== */
+/* CREATE EMPLOYEE                                                            */
+/* ========================================================================== */
+
+/**
+ * organizationId is deliberately NOT accepted here.
+ *
+ * The backend derives organization scope from the authenticated session.
+ *
+ * New employees must be created as PENDING. The backend enforces this rule.
+ */
+export interface CreateEmployeeInput {
+  employeeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+
+  departmentId?: string | null;
+
+  reportsToId?: string | null;
+
+  role?: EmployeeRole;
+
+  authenticationMethod?:
+    EmployeeAuthenticationMethod;
+}
+
+/* ========================================================================== */
+/* UPDATE EMPLOYEE                                                            */
+/* ========================================================================== */
+
+export interface UpdateEmployeeInput {
+  employeeId?: string;
+
+  firstName?: string;
+
+  lastName?: string;
+
+  email?: string;
+
+  phone?: string;
+
+  departmentId?: string | null;
+
+  reportsToId?: string | null;
+
+  role?: EmployeeRole;
+
+  status?: EmployeeStatus;
+
+  authenticationMethod?:
+    EmployeeAuthenticationMethod;
+}
+
+/* ========================================================================== */
+/* SPECIALIZED MUTATION INPUTS                                                */
+/* ========================================================================== */
+
+export interface AssignDepartmentInput {
+  departmentId: string | null;
+}
+
+export interface AssignReportingManagerInput {
+  reportsToId: string | null;
+}
+
+export interface AssignRoleInput {
+  role: EmployeeRole;
+}
+
+export interface UpdateEmployeeStatusInput {
+  status: EmployeeStatus;
+}
+
+/* ========================================================================== */
+/* SERVICE ERROR                                                              */
+/* ========================================================================== */
 
 export interface EmployeeServiceError {
   message: string;
@@ -179,17 +244,17 @@ export interface EmployeeServiceError {
   details?: unknown;
 }
 
-/* =========================================================
-   REQUEST OPTIONS
-========================================================= */
+/* ========================================================================== */
+/* REQUEST OPTIONS                                                            */
+/* ========================================================================== */
 
 export interface EmployeeRequestOptions {
   signal?: AbortSignal;
 }
 
-/* =========================================================
-   API RESPONSE ENVELOPE
-========================================================= */
+/* ========================================================================== */
+/* API RESPONSE ENVELOPE                                                      */
+/* ========================================================================== */
 
 interface ApiResponse<T> {
   success?: boolean;
@@ -207,9 +272,9 @@ interface ApiResponse<T> {
   };
 }
 
-/* =========================================================
-   REQUEST CONTROLLER
-========================================================= */
+/* ========================================================================== */
+/* REQUEST CONTROLLER                                                         */
+/* ========================================================================== */
 
 interface RequestController {
   controller: AbortController;
@@ -219,9 +284,9 @@ interface RequestController {
   wasTimedOut: () => boolean;
 }
 
-/* =========================================================
-   GENERIC OBJECT CHECK
-========================================================= */
+/* ========================================================================== */
+/* GENERIC OBJECT CHECK                                                       */
+/* ========================================================================== */
 
 function isRecord(
   value: unknown,
@@ -232,9 +297,9 @@ function isRecord(
   );
 }
 
-/* =========================================================
-   ROLE VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* ROLE VALIDATION                                                            */
+/* ========================================================================== */
 
 function isEmployeeRole(
   value: unknown,
@@ -247,9 +312,9 @@ function isEmployeeRole(
   );
 }
 
-/* =========================================================
-   STATUS VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* STATUS VALIDATION                                                          */
+/* ========================================================================== */
 
 function isEmployeeStatus(
   value: unknown,
@@ -262,9 +327,9 @@ function isEmployeeStatus(
   );
 }
 
-/* =========================================================
-   AUTHENTICATION METHOD VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* AUTHENTICATION METHOD VALIDATION                                           */
+/* ========================================================================== */
 
 function isEmployeeAuthenticationMethod(
   value: unknown,
@@ -276,9 +341,9 @@ function isEmployeeAuthenticationMethod(
   );
 }
 
-/* =========================================================
-   DEPARTMENT VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* DEPARTMENT VALIDATION                                                      */
+/* ========================================================================== */
 
 function isEmployeeDepartment(
   value: unknown,
@@ -294,9 +359,9 @@ function isEmployeeDepartment(
   );
 }
 
-/* =========================================================
-   REPORTING EMPLOYEE VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* REPORTING EMPLOYEE VALIDATION                                              */
+/* ========================================================================== */
 
 function isEmployeeReportsTo(
   value: unknown,
@@ -315,9 +380,9 @@ function isEmployeeReportsTo(
   );
 }
 
-/* =========================================================
-   EMPLOYEE VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* EMPLOYEE VALIDATION                                                        */
+/* ========================================================================== */
 
 function isEmployee(
   value: unknown,
@@ -326,76 +391,41 @@ function isEmployee(
     return false;
   }
 
-  const department =
-    value.department;
+  const department = value.department;
 
-  const reportsTo =
-    value.reportsTo;
+  const reportsTo = value.reportsTo;
 
   return (
     typeof value.id === "string" &&
-
-    typeof value.organizationId ===
-      "string" &&
-
-    typeof value.employeeId ===
-      "string" &&
-
-    typeof value.firstName ===
-      "string" &&
-
-    typeof value.lastName ===
-      "string" &&
-
-    typeof value.email ===
-      "string" &&
-
-    typeof value.phone ===
-      "string" &&
-
-    isEmployeeRole(
-      value.role,
-    ) &&
-
-    isEmployeeStatus(
-      value.status,
-    ) &&
-
+    typeof value.organizationId === "string" &&
+    typeof value.employeeId === "string" &&
+    typeof value.firstName === "string" &&
+    typeof value.lastName === "string" &&
+    typeof value.email === "string" &&
+    typeof value.phone === "string" &&
+    isEmployeeRole(value.role) &&
+    isEmployeeStatus(value.status) &&
     isEmployeeAuthenticationMethod(
       value.authenticationMethod,
     ) &&
-
-    typeof value.emailVerified ===
-      "boolean" &&
-
-    typeof value.phoneVerified ===
-      "boolean" &&
-
+    typeof value.emailVerified === "boolean" &&
+    typeof value.phoneVerified === "boolean" &&
     (
       department === null ||
-      isEmployeeDepartment(
-        department,
-      )
+      isEmployeeDepartment(department)
     ) &&
-
     (
       reportsTo === null ||
-      isEmployeeReportsTo(
-        reportsTo,
-      )
+      isEmployeeReportsTo(reportsTo)
     ) &&
-
-    typeof value.createdAt ===
-      "string" &&
-
-    typeof value.updatedAt ===
-      "string"
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
   );
 }
 
-/* =========================================================
-   EMPLOYEE LIST VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* EMPLOYEE LIST VALIDATION                                                   */
+/* ========================================================================== */
 
 function isEmployeeListResult(
   value: unknown,
@@ -404,55 +434,39 @@ function isEmployeeListResult(
     return false;
   }
 
-  if (
-    !Array.isArray(
-      value.employees,
-    )
-  ) {
+  if (!Array.isArray(value.employees)) {
+    return false;
+  }
+
+  if (typeof value.total !== "number") {
     return false;
   }
 
   if (
-    typeof value.total !==
-    "number"
-  ) {
-    return false;
-  }
-
-  if (
-    !Number.isFinite(
-      value.total,
-    ) ||
+    !Number.isFinite(value.total) ||
     value.total < 0
   ) {
     return false;
   }
 
-  return value.employees.every(
-    isEmployee,
-  );
+  return value.employees.every(isEmployee);
 }
 
-/* =========================================================
-   API URL VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* API URL VALIDATION                                                         */
+/* ========================================================================== */
 
 function validateApiBaseUrl(): void {
   if (!API_BASE_URL) {
     throw {
       message:
         "The Leave Management API is not configured.",
-
-      code:
-        "API_BASE_URL_NOT_CONFIGURED",
+      code: "API_BASE_URL_NOT_CONFIGURED",
     } satisfies EmployeeServiceError;
   }
 
   try {
-    const url =
-      new URL(
-        API_BASE_URL,
-      );
+    const url = new URL(API_BASE_URL);
 
     /*
      * Production API communication must use HTTPS.
@@ -461,8 +475,7 @@ function validateApiBaseUrl(): void {
      * in development mode.
      */
     if (
-      url.protocol !==
-        "https:" &&
+      url.protocol !== "https:" &&
       import.meta.env.DEV !== true
     ) {
       throw new Error(
@@ -473,16 +486,14 @@ function validateApiBaseUrl(): void {
     throw {
       message:
         "The Leave Management API configuration is invalid.",
-
-      code:
-        "INVALID_API_BASE_URL",
+      code: "INVALID_API_BASE_URL",
     } satisfies EmployeeServiceError;
   }
 }
 
-/* =========================================================
-   BUILD URL
-========================================================= */
+/* ========================================================================== */
+/* BUILD URL                                                                  */
+/* ========================================================================== */
 
 function buildUrl(
   endpoint: string,
@@ -492,39 +503,30 @@ function buildUrl(
   return `${API_BASE_URL}${endpoint}`;
 }
 
-/* =========================================================
-   NORMALIZE SERVICE ERROR
-========================================================= */
+/* ========================================================================== */
+/* NORMALIZE SERVICE ERROR                                                    */
+/* ========================================================================== */
 
 function createServiceError(
   error: unknown,
   fallbackMessage: string,
 ): EmployeeServiceError {
-  if (
-    isRecord(error)
-  ) {
+  if (isRecord(error)) {
     const message =
-      typeof error.message ===
-        "string" &&
-      error.message.trim()
-        .length > 0
+      typeof error.message === "string" &&
+      error.message.trim().length > 0
         ? error.message.trim()
         : fallbackMessage;
 
     const code =
-      typeof error.code ===
-        "string" &&
-      error.code.trim()
-        .length > 0
+      typeof error.code === "string" &&
+      error.code.trim().length > 0
         ? error.code.trim()
         : undefined;
 
     const status =
-      typeof error.status ===
-        "number" &&
-      Number.isFinite(
-        error.status,
-      )
+      typeof error.status === "number" &&
+      Number.isFinite(error.status)
         ? error.status
         : undefined;
 
@@ -532,32 +534,27 @@ function createServiceError(
       message,
       code,
       status,
-      details:
-        error.details,
+      details: error.details,
     };
   }
 
-  if (
-    error instanceof Error
-  ) {
+  if (error instanceof Error) {
     return {
       message:
-        error.message.trim()
-          .length > 0
+        error.message.trim().length > 0
           ? error.message.trim()
           : fallbackMessage,
     };
   }
 
   return {
-    message:
-      fallbackMessage,
+    message: fallbackMessage,
   };
 }
 
-/* =========================================================
-   HTTP ERROR
-========================================================= */
+/* ========================================================================== */
+/* HTTP ERROR                                                                 */
+/* ========================================================================== */
 
 function createHttpError(
   response: Response,
@@ -576,49 +573,37 @@ function createHttpError(
 
   return {
     message:
-      typeof backendMessage ===
-        "string" &&
-      backendMessage.trim()
-        .length > 0
+      typeof backendMessage === "string" &&
+      backendMessage.trim().length > 0
         ? backendMessage.trim()
         : `Employee request failed with status ${response.status}.`,
 
     code:
-      typeof backendCode ===
-        "string" &&
-      backendCode.trim()
-        .length > 0
+      typeof backendCode === "string" &&
+      backendCode.trim().length > 0
         ? backendCode.trim()
         : undefined,
 
-    status:
-      response.status,
+    status: response.status,
 
-    details:
-      backendDetails,
+    details: backendDetails,
   };
 }
 
-/* =========================================================
-   READ JSON RESPONSE
-========================================================= */
+/* ========================================================================== */
+/* READ JSON RESPONSE                                                         */
+/* ========================================================================== */
 
 async function readJsonResponse<T>(
   response: Response,
-): Promise<
-  ApiResponse<T> | undefined
-> {
+): Promise<ApiResponse<T> | undefined> {
   const contentType =
-    response.headers.get(
-      "content-type",
-    ) ?? "";
+    response.headers.get("content-type") ?? "";
 
   if (
     !contentType
       .toLowerCase()
-      .includes(
-        "application/json",
-      )
+      .includes("application/json")
   ) {
     return undefined;
   }
@@ -627,9 +612,7 @@ async function readJsonResponse<T>(
     const parsed: unknown =
       await response.json();
 
-    if (
-      !isRecord(parsed)
-    ) {
+    if (!isRecord(parsed)) {
       return undefined;
     }
 
@@ -639,9 +622,9 @@ async function readJsonResponse<T>(
   }
 }
 
-/* =========================================================
-   RESPONSE PARSER
-========================================================= */
+/* ========================================================================== */
+/* RESPONSE PARSER                                                           */
+/* ========================================================================== */
 
 async function parseResponse<T>(
   response: Response,
@@ -650,13 +633,8 @@ async function parseResponse<T>(
   ) => value is T,
 ): Promise<T> {
   const body =
-    await readJsonResponse<T>(
-      response,
-    );
+    await readJsonResponse<T>(response);
 
-  /*
-   * HTTP-level error.
-   */
   if (!response.ok) {
     throw createHttpError(
       response,
@@ -664,95 +642,59 @@ async function parseResponse<T>(
     );
   }
 
-  /*
-   * Successful API calls must return JSON.
-   */
   if (!body) {
     throw {
       message:
         "The Employee server returned an invalid response.",
-
-      status:
-        response.status,
-
-      code:
-        "INVALID_API_RESPONSE",
+      status: response.status,
+      code: "INVALID_API_RESPONSE",
     } satisfies EmployeeServiceError;
   }
 
-  /*
-   * Explicit API-level failure.
-   */
   if (
-    body.success !==
-      undefined &&
+    body.success !== undefined &&
     body.success !== true
   ) {
     throw {
       message:
-        typeof body.message ===
-          "string" &&
-        body.message.trim()
-          .length > 0
+        typeof body.message === "string" &&
+        body.message.trim().length > 0
           ? body.message.trim()
           : "The Employee request was not successful.",
 
       code:
-        typeof body.code ===
-          "string"
+        typeof body.code === "string"
           ? body.code
           : "API_REQUEST_FAILED",
 
-      status:
-        response.status,
+      status: response.status,
     } satisfies EmployeeServiceError;
   }
 
-  /*
-   * Successful responses must contain data.
-   */
-  if (
-    body.data ===
-    undefined
-  ) {
+  if (body.data === undefined) {
     throw {
       message:
         "The Employee server returned a response without data.",
-
-      status:
-        response.status,
-
-      code:
-        "INVALID_API_RESPONSE",
+      status: response.status,
+      code: "INVALID_API_RESPONSE",
     } satisfies EmployeeServiceError;
   }
 
-  /*
-   * Runtime contract validation.
-   */
-  if (
-    !validator(
-      body.data,
-    )
-  ) {
+  if (!validator(body.data)) {
     throw {
       message:
         "The Employee server returned data in an unexpected format.",
-
-      status:
-        response.status,
-
-      code:
-        "INVALID_API_RESPONSE",
+      status: response.status,
+      code: "INVALID_API_RESPONSE",
     } satisfies EmployeeServiceError;
   }
 
   return body.data;
 }
 
-/* =========================================================
-   REQUEST CONTROLLER
-========================================================= */
+/* ========================================================================== */
+/* REQUEST CONTROLLER                                                         */
+/* ========================================================================== */
 
 function createRequestController(
   callerSignal?: AbortSignal,
@@ -760,35 +702,24 @@ function createRequestController(
   const controller =
     new AbortController();
 
-  let timedOut =
-    false;
+  let timedOut = false;
 
   const timeoutId =
-    globalThis.setTimeout(
-      () => {
-        timedOut =
-          true;
-
-        controller.abort();
-      },
-      REQUEST_TIMEOUT_MS,
-    );
+    globalThis.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
 
   let callerAbortHandler:
     | (() => void)
     | undefined;
 
-  if (
-    callerSignal
-  ) {
-    callerAbortHandler =
-      () => {
-        controller.abort();
-      };
+  if (callerSignal) {
+    callerAbortHandler = () => {
+      controller.abort();
+    };
 
-    if (
-      callerSignal.aborted
-    ) {
+    if (callerSignal.aborted) {
       controller.abort();
     } else {
       callerSignal.addEventListener(
@@ -820,14 +751,13 @@ function createRequestController(
       }
     },
 
-    wasTimedOut: () =>
-      timedOut,
+    wasTimedOut: () => timedOut,
   };
 }
 
-/* =========================================================
-   REQUEST HEADERS
-========================================================= */
+/* ========================================================================== */
+/* REQUEST HEADERS                                                            */
+/* ========================================================================== */
 
 function buildHeaders(
   hasJsonBody: boolean,
@@ -836,25 +766,20 @@ function buildHeaders(
     string,
     string
   > = {
-    Accept:
-      "application/json",
+    Accept: "application/json",
   };
 
-  if (
-    hasJsonBody
-  ) {
-    headers[
-      "Content-Type"
-    ] =
+  if (hasJsonBody) {
+    headers["Content-Type"] =
       "application/json";
   }
 
   return headers;
 }
 
-/* =========================================================
-   GENERIC AUTHENTICATED REQUEST
-========================================================= */
+/* ========================================================================== */
+/* GENERIC AUTHENTICATED REQUEST                                              */
+/* ========================================================================== */
 
 async function request<T>(
   endpoint: string,
@@ -875,12 +800,10 @@ async function request<T>(
   },
 ): Promise<T> {
   const method =
-    options.method ??
-    "GET";
+    options.method ?? "GET";
 
   const hasJsonBody =
-    options.body !==
-    undefined;
+    options.body !== undefined;
 
   const {
     controller,
@@ -894,9 +817,7 @@ async function request<T>(
   try {
     const response =
       await fetch(
-        buildUrl(
-          endpoint,
-        ),
+        buildUrl(endpoint),
         {
           method,
 
@@ -904,8 +825,7 @@ async function request<T>(
            * Authentication is handled by
            * the backend session cookie.
            */
-          credentials:
-            "include",
+          credentials: "include",
 
           headers:
             buildHeaders(
@@ -929,11 +849,9 @@ async function request<T>(
            * Never allow stale browser/proxy
            * responses to be reused.
            */
-          cache:
-            "no-store",
+          cache: "no-store",
 
-          redirect:
-            "follow",
+          redirect: "follow",
         },
       );
 
@@ -942,67 +860,41 @@ async function request<T>(
       options.validator,
     );
   } catch (error) {
-    /*
-     * Abort / timeout handling.
-     */
     if (
-      error instanceof
-        DOMException &&
-      error.name ===
-        "AbortError"
+      error instanceof DOMException &&
+      error.name === "AbortError"
     ) {
-      if (
-        options.signal?.aborted
-      ) {
+      if (options.signal?.aborted) {
         throw {
           message:
             "The Employee request was cancelled.",
-
-          code:
-            "REQUEST_CANCELLED",
+          code: "REQUEST_CANCELLED",
         } satisfies EmployeeServiceError;
       }
 
-      if (
-        wasTimedOut()
-      ) {
+      if (wasTimedOut()) {
         throw {
           message:
             "The Employee request timed out. Please try again.",
-
-          code:
-            "REQUEST_TIMEOUT",
+          code: "REQUEST_TIMEOUT",
         } satisfies EmployeeServiceError;
       }
 
       throw {
         message:
           "The Employee request was cancelled.",
-
-        code:
-          "REQUEST_CANCELLED",
+        code: "REQUEST_CANCELLED",
       } satisfies EmployeeServiceError;
     }
 
-    /*
-     * Network failure.
-     */
-    if (
-      error instanceof
-        TypeError
-    ) {
+    if (error instanceof TypeError) {
       throw {
         message:
           "Unable to connect to the Leave Management service. Please check your connection and try again.",
-
-        code:
-          "NETWORK_ERROR",
+        code: "NETWORK_ERROR",
       } satisfies EmployeeServiceError;
     }
 
-    /*
-     * Preserve structured API errors.
-     */
     throw createServiceError(
       error,
       "Unable to communicate with the Employee service.",
@@ -1012,47 +904,40 @@ async function request<T>(
   }
 }
 
-/* =========================================================
-   EMPLOYEE ID VALIDATION
-========================================================= */
+/* ========================================================================== */
+/* EMPLOYEE ID VALIDATION                                                     */
+/* ========================================================================== */
 
 function validateEmployeeId(
   employeeId: string,
 ): string {
   if (
-    typeof employeeId !==
-    "string"
+    typeof employeeId !== "string"
   ) {
     throw {
       message:
         "A valid Employee ID is required.",
-
-      code:
-        "INVALID_EMPLOYEE_ID",
+      code: "INVALID_EMPLOYEE_ID",
     } satisfies EmployeeServiceError;
   }
 
   const normalized =
     employeeId.trim();
 
-  if (
-    !normalized
-  ) {
+  if (!normalized) {
     throw {
       message:
         "A valid Employee ID is required.",
-
-      code:
-        "INVALID_EMPLOYEE_ID",
+      code: "INVALID_EMPLOYEE_ID",
     } satisfies EmployeeServiceError;
   }
 
   return normalized;
 }
 
-/* =========================================================
-   LIST EMPLOYEES
-========================================================= */
+/* ========================================================================== */
+/* LIST EMPLOYEES                                                             */
+/* ========================================================================== */
 
 /**
  * Retrieve all employees belonging to the
@@ -1070,11 +955,9 @@ export async function listEmployees(
   return request<EmployeeListResult>(
     EMPLOYEE_ENDPOINTS.collection,
     {
-      method:
-        "GET",
+      method: "GET",
 
-      signal:
-        options.signal,
+      signal: options.signal,
 
       validator:
         isEmployeeListResult,
@@ -1082,17 +965,10 @@ export async function listEmployees(
   );
 }
 
-/* =========================================================
-   GET EMPLOYEE
-========================================================= */
+/* ========================================================================== */
+/* GET EMPLOYEE                                                               */
+/* ========================================================================== */
 
-/**
- * Retrieve one employee.
- *
- * The backend remains responsible for ensuring
- * that the requested employee belongs to the
- * authenticated user's organization.
- */
 export async function getEmployee(
   employeeId: string,
   options: EmployeeRequestOptions = {},
@@ -1103,56 +979,362 @@ export async function getEmployee(
     );
 
   return request<EmployeePublicRecord>(
-    EMPLOYEE_ENDPOINTS.item(
-      id,
-    ),
+    EMPLOYEE_ENDPOINTS.item(id),
     {
-      method:
-        "GET",
+      method: "GET",
 
-      signal:
-        options.signal,
+      signal: options.signal,
 
-      validator:
-        isEmployee,
+      validator: isEmployee,
     },
   );
 }
 
-/* =========================================================
-   DEPARTMENT-LEAD ELIGIBILITY
-========================================================= */
+/* ========================================================================== */
+/* CREATE EMPLOYEE                                                            */
+/* ========================================================================== */
 
 /**
- * Roles that the backend Department Lead validation
- * currently permits:
+ * Creates a new employee in the authenticated
+ * user's organization.
  *
- * - MANAGER
- * - HR_ADMIN
- * - SUPER_ADMIN
+ * The backend requires newly created employees
+ * to start in PENDING status.
+ *
+ * organizationId is intentionally not accepted.
  */
-export const DEPARTMENT_LEAD_ROLES: readonly EmployeeRole[] =
-  [
+export async function createEmployee(
+  input: CreateEmployeeInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const employeeId =
+    validateRequiredString(
+      input.employeeId,
+      "Employee ID",
+    );
+
+  const firstName =
+    validateRequiredString(
+      input.firstName,
+      "First name",
+    );
+
+  const lastName =
+    validateRequiredString(
+      input.lastName,
+      "Last name",
+    );
+
+  const email =
+    validateRequiredString(
+      input.email,
+      "Email address",
+    );
+
+  const phone =
+    validateRequiredString(
+      input.phone,
+      "Phone number",
+    );
+
+  const body: CreateEmployeeInput = {
+    employeeId,
+    firstName,
+    lastName,
+    email,
+    phone,
+
+    departmentId:
+      normalizeOptionalId(
+        input.departmentId,
+      ),
+
+    reportsToId:
+      normalizeOptionalId(
+        input.reportsToId,
+      ),
+
+    role:
+      input.role ?? "EMPLOYEE",
+
+    authenticationMethod:
+      input.authenticationMethod ??
+      "PASSWORD_AND_OTP",
+  };
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.collection,
+    {
+      method: "POST",
+
+      body,
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* UPDATE EMPLOYEE                                                            */
+/* ========================================================================== */
+
+export async function updateEmployee(
+  employeeId: string,
+  input: UpdateEmployeeInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  const body: UpdateEmployeeInput = {};
+
+  if (input.employeeId !== undefined) {
+    body.employeeId =
+      validateRequiredString(
+        input.employeeId,
+        "Employee ID",
+      );
+  }
+
+  if (input.firstName !== undefined) {
+    body.firstName =
+      validateRequiredString(
+        input.firstName,
+        "First name",
+      );
+  }
+
+  if (input.lastName !== undefined) {
+    body.lastName =
+      validateRequiredString(
+        input.lastName,
+        "Last name",
+      );
+  }
+
+  if (input.email !== undefined) {
+    body.email =
+      validateRequiredString(
+        input.email,
+        "Email address",
+      );
+  }
+
+  if (input.phone !== undefined) {
+    body.phone =
+      validateRequiredString(
+        input.phone,
+        "Phone number",
+      );
+  }
+
+  if (input.departmentId !== undefined) {
+    body.departmentId =
+      normalizeOptionalId(
+        input.departmentId,
+      );
+  }
+
+  if (input.reportsToId !== undefined) {
+    body.reportsToId =
+      normalizeOptionalId(
+        input.reportsToId,
+      );
+  }
+
+  if (input.role !== undefined) {
+    body.role = input.role;
+  }
+
+  if (input.status !== undefined) {
+    body.status = input.status;
+  }
+
+  if (
+    input.authenticationMethod !==
+    undefined
+  ) {
+    body.authenticationMethod =
+      input.authenticationMethod;
+  }
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.item(id),
+    {
+      method: "PATCH",
+
+      body,
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* ASSIGN DEPARTMENT                                                          */
+/* ========================================================================== */
+
+export async function assignDepartment(
+  employeeId: string,
+  input: AssignDepartmentInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.department(id),
+    {
+      method: "PATCH",
+
+      body: {
+        departmentId:
+          normalizeOptionalId(
+            input.departmentId,
+          ),
+      },
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* ASSIGN REPORTING MANAGER                                                   */
+/* ========================================================================== */
+
+export async function assignReportingManager(
+  employeeId: string,
+  input: AssignReportingManagerInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.reportingManager(id),
+    {
+      method: "PATCH",
+
+      body: {
+        reportsToId:
+          normalizeOptionalId(
+            input.reportsToId,
+          ),
+      },
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* ASSIGN ROLE                                                                */
+/* ========================================================================== */
+
+export async function assignRole(
+  employeeId: string,
+  input: AssignRoleInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  if (!isEmployeeRole(input.role)) {
+    throw {
+      message:
+        "A valid employee role is required.",
+      code: "INVALID_EMPLOYEE_ROLE",
+    } satisfies EmployeeServiceError;
+  }
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.role(id),
+    {
+      method: "PATCH",
+
+      body: {
+        role: input.role,
+      },
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* UPDATE ACCOUNT STATUS                                                      */
+/* ========================================================================== */
+
+export async function updateEmployeeStatus(
+  employeeId: string,
+  input: UpdateEmployeeStatusInput,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  if (!isEmployeeStatus(input.status)) {
+    throw {
+      message:
+        "A valid employee account status is required.",
+      code: "INVALID_EMPLOYEE_STATUS",
+    } satisfies EmployeeServiceError;
+  }
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.status(id),
+    {
+      method: "PATCH",
+
+      body: {
+        status: input.status,
+      },
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
+/* DEPARTMENT-LEAD ELIGIBILITY                                                */
+/* ========================================================================== */
+
+/**
+ * Roles permitted by the backend for Department Lead.
+ *
+ * The backend remains authoritative and MUST
+ * revalidate these rules.
+ */
+export const DEPARTMENT_LEAD_ROLES:
+  readonly EmployeeRole[] = [
     "MANAGER",
     "HR_ADMIN",
     "SUPER_ADMIN",
   ] as const;
 
-/**
- * Return employees who are eligible to be displayed
- * as Department Lead candidates for a particular
- * department.
- *
- * This is a UI/reference-data helper only.
- *
- * The backend remains authoritative and MUST revalidate:
- * - organization
- * - department membership
- * - active status
- * - permitted role
- *
- * No security decision is delegated to this helper.
- */
 export function getEligibleDepartmentLeads(
   employees: EmployeePublicRecord[],
   departmentId: string,
@@ -1160,34 +1342,25 @@ export function getEligibleDepartmentLeads(
   const normalizedDepartmentId =
     departmentId.trim();
 
-  if (
-    !normalizedDepartmentId
-  ) {
+  if (!normalizedDepartmentId) {
     return [];
   }
 
   return employees.filter(
     (employee) =>
-      employee.status ===
-        "ACTIVE" &&
-
+      employee.status === "ACTIVE" &&
       DEPARTMENT_LEAD_ROLES.includes(
         employee.role,
       ) &&
-
       employee.department?.id ===
         normalizedDepartmentId,
   );
 }
 
-/* =========================================================
-   EMPLOYEE DISPLAY HELPERS
-========================================================= */
+/* ========================================================================== */
+/* EMPLOYEE DISPLAY HELPERS                                                   */
+/* ========================================================================== */
 
-/**
- * Build a safe display name without assuming
- * any additional employee fields.
- */
 export function getEmployeeDisplayName(
   employee: EmployeePublicRecord,
 ): string {
@@ -1199,11 +1372,6 @@ export function getEmployeeDisplayName(
     .join(" ");
 }
 
-/**
- * Build a short initials representation for
- * employee avatars where a profile image is
- * not available.
- */
 export function getEmployeeInitials(
   employee: EmployeePublicRecord,
 ): string {
@@ -1217,18 +1385,74 @@ export function getEmployeeInitials(
       .trim()
       .charAt(0);
 
-  return `${first}${last}`
-    .toUpperCase();
+  return `${first}${last}`.toUpperCase();
 }
 
-/* =========================================================
-   SERVICE OBJECT
-========================================================= */
+/* ========================================================================== */
+/* INPUT HELPERS                                                              */
+/* ========================================================================== */
+
+function validateRequiredString(
+  value: string,
+  fieldName: string,
+): string {
+  if (
+    typeof value !== "string" ||
+    !value.trim()
+  ) {
+    throw {
+      message:
+        `${fieldName} is required.`,
+      code: "INVALID_EMPLOYEE_INPUT",
+    } satisfies EmployeeServiceError;
+  }
+
+  return value.trim();
+}
+
+function normalizeOptionalId(
+  value:
+    | string
+    | null
+    | undefined,
+): string | null {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const normalized =
+    value.trim();
+
+  return normalized || null;
+}
+
+/* ========================================================================== */
+/* SERVICE OBJECT                                                             */
+/* ========================================================================== */
 
 export const employeeService = {
   listEmployees,
+
   getEmployee,
+
+  createEmployee,
+
+  updateEmployee,
+
+  assignDepartment,
+
+  assignReportingManager,
+
+  assignRole,
+
+  updateEmployeeStatus,
+
   getEligibleDepartmentLeads,
+
   getEmployeeDisplayName,
+
   getEmployeeInitials,
 } as const;

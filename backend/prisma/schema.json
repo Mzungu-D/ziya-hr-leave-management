@@ -20,6 +20,10 @@
       "model": "EmployeeDocument",
       "namespace": "public"
     },
+    "Holiday": {
+      "model": "Holiday",
+      "namespace": "public"
+    },
     "LeaveApproval": {
       "model": "LeaveApproval",
       "namespace": "public"
@@ -42,6 +46,14 @@
     },
     "OtpVerification": {
       "model": "OtpVerification",
+      "namespace": "public"
+    },
+    "Policy": {
+      "model": "Policy",
+      "namespace": "public"
+    },
+    "SystemSetting": {
+      "model": "SystemSetting",
       "namespace": "public"
     },
     "UserSession": {
@@ -247,6 +259,44 @@
               {
                 "name": "DEVICE_VERIFICATION",
                 "value": "DEVICE_VERIFICATION"
+              }
+            ]
+          },
+          "PolicyStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "DRAFT",
+                "value": "DRAFT"
+              },
+              {
+                "name": "PUBLISHED",
+                "value": "PUBLISHED"
+              },
+              {
+                "name": "ARCHIVED",
+                "value": "ARCHIVED"
+              }
+            ]
+          },
+          "SystemSettingType": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "STRING",
+                "value": "STRING"
+              },
+              {
+                "name": "INTEGER",
+                "value": "INTEGER"
+              },
+              {
+                "name": "BOOLEAN",
+                "value": "BOOLEAN"
+              },
+              {
+                "name": "JSON",
+                "value": "JSON"
               }
             ]
           },
@@ -1209,6 +1259,174 @@
               "table": "EmployeeDocument"
             }
           },
+          "Holiday": {
+            "fields": {
+              "category": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "countryCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isActive": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "isRecurring": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "isReligious": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "regionCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "religion": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "category": {
+                  "column": "category"
+                },
+                "countryCode": {
+                  "column": "countryCode"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "date": {
+                  "column": "date"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isActive": {
+                  "column": "isActive"
+                },
+                "isRecurring": {
+                  "column": "isRecurring"
+                },
+                "isReligious": {
+                  "column": "isReligious"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "regionCode": {
+                  "column": "regionCode"
+                },
+                "religion": {
+                  "column": "religion"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Holiday"
+            }
+          },
           "LeaveApproval": {
             "fields": {
               "action": {
@@ -1936,6 +2154,21 @@
                   "namespace": "public"
                 }
               },
+              "holidays": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "Holiday",
+                  "namespace": "public"
+                }
+              },
               "leaveTypes": {
                 "cardinality": "1:N",
                 "on": {
@@ -1948,6 +2181,36 @@
                 },
                 "to": {
                   "model": "LeaveType",
+                  "namespace": "public"
+                }
+              },
+              "policies": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "Policy",
+                  "namespace": "public"
+                }
+              },
+              "settings": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "SystemSetting",
                   "namespace": "public"
                 }
               }
@@ -2086,6 +2349,294 @@
               },
               "namespaceId": "public",
               "table": "OtpVerification"
+            }
+          },
+          "Policy": {
+            "fields": {
+              "archivedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "code": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "effectiveFrom": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "effectiveTo": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "publishedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "PolicyStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "version": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "archivedAt": {
+                  "column": "archivedAt"
+                },
+                "code": {
+                  "column": "code"
+                },
+                "content": {
+                  "column": "content"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "effectiveFrom": {
+                  "column": "effectiveFrom"
+                },
+                "effectiveTo": {
+                  "column": "effectiveTo"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "publishedAt": {
+                  "column": "publishedAt"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "version": {
+                  "column": "version"
+                }
+              },
+              "namespaceId": "public",
+              "table": "Policy"
+            }
+          },
+          "SystemSetting": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "key": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "type": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "SystemSettingType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "value": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "key": {
+                  "column": "key"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "type": {
+                  "column": "type"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "value": {
+                  "column": "value"
+                }
+              },
+              "namespaceId": "public",
+              "table": "SystemSetting"
             }
           },
           "UserSession": {
@@ -3016,6 +3567,196 @@
                 }
               ]
             },
+            "Holiday": {
+              "columns": {
+                "category": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PUBLIC"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "countryCode": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "date": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "isActive": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "isRecurring": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "isReligious": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "regionCode": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "religion": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Holiday"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "category"
+                  ],
+                  "name": "Holiday_organizationId_category_idx_a0ddcd26",
+                  "prefix": "Holiday_organizationId_category_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "countryCode"
+                  ],
+                  "name": "Holiday_organizationId_countryCode_idx_e568249f",
+                  "prefix": "Holiday_organizationId_countryCode_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "date"
+                  ],
+                  "name": "Holiday_organizationId_date_idx_eac2a339",
+                  "prefix": "Holiday_organizationId_date_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "Holiday_organizationId_idx_2e17ef41",
+                  "prefix": "Holiday_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "isActive"
+                  ],
+                  "name": "Holiday_organizationId_isActive_idx_c89f2a48",
+                  "prefix": "Holiday_organizationId_isActive_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "regionCode"
+                  ],
+                  "name": "Holiday_organizationId_regionCode_idx_25c621f9",
+                  "prefix": "Holiday_organizationId_regionCode_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "religion"
+                  ],
+                  "name": "Holiday_organizationId_religion_idx_2e0d4dd3",
+                  "prefix": "Holiday_organizationId_religion_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "name",
+                    "date"
+                  ]
+                }
+              ]
+            },
             "LeaveApproval": {
               "checks": [
                 {
@@ -3705,6 +4446,289 @@
               },
               "uniques": []
             },
+            "Policy": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')",
+                  "name": "Policy_status_check_bc64f66b",
+                  "prefix": "Policy_status_check"
+                }
+              ],
+              "columns": {
+                "archivedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "code": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "content": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "effectiveFrom": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "effectiveTo": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "publishedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DRAFT"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "PolicyStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "version": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Policy"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "effectiveFrom"
+                  ],
+                  "name": "Policy_organizationId_effectiveFrom_idx_46424589",
+                  "prefix": "Policy_organizationId_effectiveFrom_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "Policy_organizationId_idx_2e17ef41",
+                  "prefix": "Policy_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "publishedAt"
+                  ],
+                  "name": "Policy_organizationId_publishedAt_idx_d5b94591",
+                  "prefix": "Policy_organizationId_publishedAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "status"
+                  ],
+                  "name": "Policy_organizationId_status_idx_21af5e82",
+                  "prefix": "Policy_organizationId_status_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "code"
+                  ]
+                }
+              ]
+            },
+            "SystemSetting": {
+              "checks": [
+                {
+                  "expression": "\"type\" IN ('STRING', 'INTEGER', 'BOOLEAN', 'JSON')",
+                  "name": "SystemSetting_type_check_50739480",
+                  "prefix": "SystemSetting_type_check"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "key": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "type": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "STRING"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "SystemSettingType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "value": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "SystemSetting"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "SystemSetting_organizationId_idx_2e17ef41",
+                  "prefix": "SystemSetting_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "type"
+                  ],
+                  "name": "SystemSetting_organizationId_type_idx_ff4b8294",
+                  "prefix": "SystemSetting_organizationId_type_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "organizationId",
+                    "key"
+                  ]
+                }
+              ]
+            },
             "UserSession": {
               "columns": {
                 "createdAt": {
@@ -3888,6 +4912,23 @@
                 "DEVICE_VERIFICATION"
               ]
             },
+            "PolicyStatus": {
+              "kind": "valueSet",
+              "values": [
+                "DRAFT",
+                "PUBLISHED",
+                "ARCHIVED"
+              ]
+            },
+            "SystemSettingType": {
+              "kind": "valueSet",
+              "values": [
+                "STRING",
+                "INTEGER",
+                "BOOLEAN",
+                "JSON"
+              ]
+            },
             "UserRole": {
               "kind": "valueSet",
               "values": [
@@ -3903,10 +4944,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "76c8d0f3f6f2fa79c58c7d371f612adda87dc8a089be64d4f80b142900b9a1d2"
+    "storageHash": "ebfe5672af13b5ba7704279bcf6df9a04e4e0f0f4d27aa85277c8a7c3108aa2b"
   },
   "execution": {
-    "executionHash": "88cc5f474f75da3f90dcfb2665d66e017ad9d0b3c843a84d66d492320c6ed95c",
+    "executionHash": "23bf3c2ae6e150fe62c8c284bfbcd24635deba660a6451379a00734909bb3364",
     "mutations": {
       "defaults": [
         {
@@ -3994,6 +5035,32 @@
           },
           "ref": {
             "entry": "EmployeeDocument",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Holiday",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Holiday",
             "field": "updatedAt",
             "namespace": "public"
           }
@@ -4121,6 +5188,58 @@
           "ref": {
             "entry": "OtpVerification",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Policy",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Policy",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "SystemSetting",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "SystemSetting",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

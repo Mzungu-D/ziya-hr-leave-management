@@ -1,15 +1,11 @@
 import {
   BarChart3,
-  Bell,
   Building2,
   CalendarDays,
   ClipboardCheck,
   FileText,
   HelpCircle,
   Home,
-  Settings,
-  ShieldCheck,
-  UserCog,
   Users,
 } from "lucide-react";
 
@@ -23,9 +19,29 @@ export interface NavigationItem {
   icon: LucideIcon;
   badge?: number;
   description?: string;
-  roles?: UserRole[];
+  roles: UserRole[];
 }
 
+/**
+ * HR/Admin workspace navigation.
+ *
+ * This is intentionally limited to the approved HR/Admin workspace:
+ * Dashboard
+ * Employees
+ * Leave Management
+ * Leave Types
+ * Approvals
+ * Policies
+ * Departments
+ * Holidays & Calendar
+ * Reports & Analytics
+ *
+ * Settings, audit logs, notifications and user administration are
+ * not exposed through this primary workspace navigation.
+ *
+ * Backend authorization remains the security authority. These role
+ * definitions control presentation only.
+ */
 export const adminNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -41,15 +57,15 @@ export const adminNavigation: NavigationItem[] = [
     href: "/admin/employees",
     icon: Users,
     description: "Employee directory and workforce records",
-    roles: ["HR_ADMIN", "SUPER_ADMIN", "MANAGER"],
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
   {
     key: "leave-management",
     label: "Leave Management",
     href: "/admin/leave",
     icon: CalendarDays,
-    description: "Manage leave requests, balances and policies",
-    roles: ["HR_ADMIN", "SUPER_ADMIN", "MANAGER"],
+    description: "Manage leave requests, balances and leave activity",
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
   {
     key: "leave-types",
@@ -65,14 +81,14 @@ export const adminNavigation: NavigationItem[] = [
     href: "/admin/approvals",
     icon: ClipboardCheck,
     description: "Review and process pending leave requests",
-    roles: ["HR_ADMIN", "SUPER_ADMIN", "MANAGER"],
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
   {
     key: "policies",
     label: "Policies",
     href: "/admin/policies",
     icon: FileText,
-    description: "Configure leave policies and entitlements",
+    description: "Configure leave policies and entitlement rules",
     roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
   {
@@ -97,42 +113,13 @@ export const adminNavigation: NavigationItem[] = [
     href: "/admin/reports",
     icon: BarChart3,
     description: "Workforce and leave analytics",
-    roles: ["HR_ADMIN", "SUPER_ADMIN", "MANAGER"],
-  },
-  {
-    key: "settings",
-    label: "System Settings",
-    href: "/admin/settings",
-    icon: Settings,
-    description: "Configure system-wide HR settings",
-    roles: ["HR_ADMIN", "SUPER_ADMIN"],
-  },
-  {
-    key: "audit-logs",
-    label: "Audit Logs",
-    href: "/admin/audit-logs",
-    icon: ShieldCheck,
-    description: "Review security and system activity",
-    roles: ["HR_ADMIN", "SUPER_ADMIN"],
-  },
-  {
-    key: "notifications",
-    label: "Notifications",
-    href: "/admin/notifications",
-    icon: Bell,
-    description: "System and workflow notifications",
-    roles: ["EMPLOYEE", "MANAGER", "HR_ADMIN", "SUPER_ADMIN"],
-  },
-  {
-    key: "user-management",
-    label: "User Management",
-    href: "/admin/users",
-    icon: UserCog,
-    description: "Manage system users, roles and access",
     roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
 ];
 
+/**
+ * Employee workspace navigation.
+ */
 export const employeeNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -166,16 +153,11 @@ export const employeeNavigation: NavigationItem[] = [
     description: "View your team members",
     roles: ["EMPLOYEE"],
   },
-  {
-    key: "notifications",
-    label: "Notifications",
-    href: "/employee/notifications",
-    icon: Bell,
-    description: "View your notifications",
-    roles: ["EMPLOYEE"],
-  },
 ];
 
+/**
+ * Manager workspace navigation.
+ */
 export const managerNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -217,16 +199,14 @@ export const managerNavigation: NavigationItem[] = [
     description: "Team leave reports and analytics",
     roles: ["MANAGER"],
   },
-  {
-    key: "notifications",
-    label: "Notifications",
-    href: "/manager/notifications",
-    icon: Bell,
-    description: "View your notifications",
-    roles: ["MANAGER"],
-  },
 ];
 
+/**
+ * Shared support navigation.
+ *
+ * This is rendered separately from the workspace navigation so
+ * Help & Support remains visually separated from the main modules.
+ */
 export const supportNavigation: NavigationItem[] = [
   {
     key: "help",
@@ -243,8 +223,15 @@ export const navigationGroups = {
   employee: employeeNavigation,
   manager: managerNavigation,
   support: supportNavigation,
-};
+} as const;
 
+/**
+ * Returns only the primary workspace navigation permitted for
+ * the authenticated user's role.
+ *
+ * The returned navigation is presentation-level only.
+ * API/backend authorization must independently enforce access.
+ */
 export function getNavigationForRole(
   role: UserRole,
 ): NavigationItem[] {
@@ -264,18 +251,51 @@ export function getNavigationForRole(
   }
 }
 
+/**
+ * Determines whether a navigation item represents the current route.
+ *
+ * Root workspace routes require an exact match so `/admin` does
+ * not incorrectly remain active on `/admin/employees`.
+ *
+ * Child routes remain active for nested URLs, for example:
+ * `/admin/employees/123`
+ * remains active under Employees.
+ */
 export function isNavigationItemActive(
   currentPath: string,
   item: NavigationItem,
 ): boolean {
-  const rootPaths = ["/admin", "/employee", "/manager"];
+  const normalizedCurrentPath = normalizePath(currentPath);
+  const normalizedItemPath = normalizePath(item.href);
 
-  if (rootPaths.includes(item.href)) {
-    return currentPath === item.href;
+  const workspaceRoots = new Set([
+    "/admin",
+    "/employee",
+    "/manager",
+  ]);
+
+  if (workspaceRoots.has(normalizedItemPath)) {
+    return normalizedCurrentPath === normalizedItemPath;
   }
 
   return (
-    currentPath === item.href ||
-    currentPath.startsWith(`${item.href}/`)
+    normalizedCurrentPath === normalizedItemPath ||
+    normalizedCurrentPath.startsWith(`${normalizedItemPath}/`)
   );
+}
+
+/**
+ * Normalizes application paths before route comparison.
+ *
+ * This prevents trailing-slash differences from breaking active
+ * navigation state while preserving the root `/`.
+ */
+function normalizePath(path: string): string {
+  if (!path || path === "/") {
+    return "/";
+  }
+
+  const withoutTrailingSlash = path.replace(/\/+$/, "");
+
+  return withoutTrailingSlash || "/";
 }

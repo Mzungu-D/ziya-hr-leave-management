@@ -37,13 +37,15 @@ interface AuthProviderProps {
 
 type LoginMode = "EMAIL" | "PHONE";
 
+type VerificationChannel = "EMAIL" | "SMS";
+
 interface AuthContextValue extends CurrentUserContext {
   loginMode: LoginMode;
   setLoginMode: (mode: LoginMode) => void;
 
   pendingVerification: boolean;
   verificationDestination: string | null;
-  verificationChannel: "EMAIL" | "SMS" | null;
+  verificationChannel: VerificationChannel | null;
 
   loginWithEmail: (
     email: string,
@@ -65,23 +67,33 @@ interface AuthContextValue extends CurrentUserContext {
 
   requestPasswordReset: (
     payload: PasswordResetRequest,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+  }>;
 
   confirmPasswordReset: (
     payload: PasswordResetConfirmation,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<{
+    success: boolean;
+    message?: string;
+  }>;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(
-  undefined,
-);
+const AuthContext =
+  createContext<AuthContextValue | undefined>(
+    undefined,
+  );
 
-/**
- * Default permissions are intentionally restrictive.
+/*
+ * Frontend permissions are presentation-level permissions.
  *
- * The backend should provide the authoritative permission set.
- * These defaults prevent the frontend from accidentally granting
- * access while authentication/permission data is loading.
+ * They must NEVER be treated as the application's security
+ * boundary. Every protected operation must still be authorized
+ * by the backend.
+ *
+ * These values also ensure that permission state is restrictive
+ * while authentication is unavailable.
  */
 const EMPTY_PERMISSIONS: PermissionSet = {
   canViewEmployees: false,
@@ -110,12 +122,14 @@ const EMPTY_PERMISSIONS: PermissionSet = {
   canManageSystemSettings: false,
 };
 
-/**
- * Resolve permissions from the authenticated user.
+/*
+ * Returns the frontend capability map for the authenticated
+ * role.
  *
- * The backend remains the source of truth for authorization.
- * This frontend mapping is only a temporary typed foundation until
- * the backend returns explicit permissions.
+ * IMPORTANT:
+ * This is only used to control UI visibility.
+ *
+ * The backend remains the authoritative authorization layer.
  */
 function getDefaultPermissionsForRole(
   user: AuthenticatedUser,
@@ -238,66 +252,138 @@ function getDefaultPermissionsForRole(
   }
 }
 
-/**
- * Never persist passwords or OTPs in browser storage.
+/*
+ * Determine where the OTP was delivered.
  *
- * Authentication tokens should preferably be maintained through
- * secure HTTP-only cookies by the backend.
+ * The backend determines whether verification is required.
  */
 function getVerificationDestination(
   response: LoginResponse,
 ): string | null {
-  if (response.authenticationMethod === "PASSWORD") {
+  if (
+    response.authenticationMethod ===
+    "PASSWORD"
+  ) {
     return null;
   }
 
-  return response.user.phone ?? response.user.email ?? null;
+  return (
+    response.user.phone ??
+    response.user.email ??
+    null
+  );
+}
+
+function getVerificationChannel(
+  credentials: LoginCredentials,
+): VerificationChannel | null {
+  if (credentials.phone?.trim()) {
+    return "SMS";
+  }
+
+  if (credentials.email?.trim()) {
+    return "EMAIL";
+  }
+
+  return null;
+}
+
+function normalizeEmail(
+  email: string,
+): string {
+  return email.trim().toLowerCase();
+}
+
+function normalizePhone(
+  phone: string,
+): string {
+  return phone.trim();
+}
+
+function normalizeOtp(
+  otp: string,
+): string {
+  return otp.trim();
 }
 
 export function AuthProvider({
   children,
 }: AuthProviderProps) {
   const [user, setUser] =
-    useState<AuthenticatedUser | null>(null);
+    useState<AuthenticatedUser | null>(
+      null,
+    );
 
   const [permissions, setPermissions] =
     useState<PermissionSet | null>(null);
 
-  const [isAuthenticated, setIsAuthenticated] =
-    useState(false);
+  const [
+    isAuthenticated,
+    setIsAuthenticated,
+  ] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] =
+    useState(true);
 
   const [loginMode, setLoginMode] =
     useState<LoginMode>("EMAIL");
 
-  const [pendingVerification, setPendingVerification] =
-    useState(false);
+  const [
+    pendingVerification,
+    setPendingVerification,
+  ] = useState(false);
 
-  const [verificationDestination, setVerificationDestination] =
-    useState<string | null>(null);
+  const [
+    verificationDestination,
+    setVerificationDestination,
+  ] = useState<string | null>(null);
 
-  const [verificationChannel, setVerificationChannel] =
-    useState<"EMAIL" | "SMS" | null>(null);
+  const [
+    verificationChannel,
+    setVerificationChannel,
+  ] =
+    useState<VerificationChannel | null>(
+      null,
+    );
 
-  const [lastLoginCredentials, setLastLoginCredentials] =
+  /*
+   * Never store passwords or OTPs in localStorage,
+   * sessionStorage, cookies created by JavaScript,
+   * IndexedDB, or any other browser persistence layer.
+   *
+   * This state exists only for the duration of the
+   * current login verification flow.
+   */
+  const [
+    lastLoginCredentials,
+    setLastLoginCredentials,
+  ] =
     useState<LoginCredentials | null>(null);
 
-  /**
-   * Apply a successful authentication response.
+  /*
+   * Establish authenticated application state after
+   * the backend has successfully authenticated the user.
    */
   const establishSession = useCallback(
     (response: LoginResponse) => {
       setUser(response.user);
+
       setPermissions(
-        getDefaultPermissionsForRole(response.user),
+        getDefaultPermissionsForRole(
+          response.user,
+        ),
       );
+
       setIsAuthenticated(true);
 
       setPendingVerification(false);
       setVerificationDestination(null);
       setVerificationChannel(null);
 
+      /*
+       * Credentials are no longer needed after
+       * authentication has completed.
+       */
       setLastLoginCredentials(null);
 
       return response;
@@ -305,8 +391,8 @@ export function AuthProvider({
     [],
   );
 
-  /**
-   * Clear all local authentication state.
+  /*
+   * Clear every piece of local authentication state.
    */
   const clearSession = useCallback(() => {
     setUser(null);
@@ -320,18 +406,19 @@ export function AuthProvider({
     setLastLoginCredentials(null);
   }, []);
 
-  /**
-   * Restore an existing authenticated session when the
-   * application starts.
+  /*
+   * Restore an existing authenticated session when
+   * the application starts.
    *
-   * The backend decides whether the session is still valid.
+   * The backend session cookie is the authority.
    */
   useEffect(() => {
     let mounted = true;
 
     const restoreSession = async () => {
       try {
-        const response = await getCurrentSession();
+        const response =
+          await getCurrentSession();
 
         if (!mounted) {
           return;
@@ -358,44 +445,57 @@ export function AuthProvider({
     };
   }, [clearSession, establishSession]);
 
-  /**
+  /*
    * Generic login method.
    *
-   * The backend determines whether the current device is already
-   * trusted. If verification is required, the response should use
-   * OTP authentication and the UI will move into verification mode.
+   * The backend decides whether this device/session
+   * requires OTP verification.
    */
   const login = useCallback(
     async (
       credentials: LoginCredentials,
     ): Promise<LoginResponse> => {
-      const response = await loginRequest(credentials);
+      const response =
+        await loginRequest(credentials);
 
+      /*
+       * New/untrusted devices may require OTP.
+       *
+       * Do not mark the user as authenticated until
+       * the OTP has been successfully verified.
+       */
       if (
-        response.authenticationMethod === "OTP" ||
+        response.authenticationMethod ===
+          "OTP" ||
         response.authenticationMethod ===
           "PASSWORD_AND_OTP"
       ) {
         const destination =
-          getVerificationDestination(response);
+          getVerificationDestination(
+            response,
+          );
+
+        const channel =
+          getVerificationChannel(
+            credentials,
+          );
 
         setPendingVerification(true);
-        setVerificationDestination(destination);
-
-        setVerificationChannel(
-          response.user.phone
-            ? "SMS"
-            : response.user.email
-              ? "EMAIL"
-              : null,
+        setVerificationDestination(
+          destination,
+        );
+        setVerificationChannel(channel);
+        setLastLoginCredentials(
+          credentials,
         );
 
-        setLastLoginCredentials(credentials);
-
         /*
-         * The backend should not return an authenticated session
-         * until the OTP has been successfully verified.
+         * The backend should not consider the
+         * application fully authenticated until
+         * OTP verification succeeds.
          */
+        setIsAuthenticated(false);
+
         return response;
       }
 
@@ -404,7 +504,7 @@ export function AuthProvider({
     [establishSession],
   );
 
-  /**
+  /*
    * Email login.
    */
   const loginWithEmail = useCallback(
@@ -412,17 +512,26 @@ export function AuthProvider({
       email: string,
       password?: string,
     ): Promise<LoginResponse> => {
+      const normalizedEmail =
+        normalizeEmail(email);
+
+      if (!normalizedEmail) {
+        throw new Error(
+          "Email address is required.",
+        );
+      }
+
       setLoginMode("EMAIL");
 
       return login({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
       });
     },
     [login],
   );
 
-  /**
+  /*
    * Phone login.
    */
   const loginWithPhone = useCallback(
@@ -430,24 +539,45 @@ export function AuthProvider({
       phone: string,
       password?: string,
     ): Promise<LoginResponse> => {
+      const normalizedPhone =
+        normalizePhone(phone);
+
+      if (!normalizedPhone) {
+        throw new Error(
+          "Phone number is required.",
+        );
+      }
+
       setLoginMode("PHONE");
 
       return login({
-        phone: phone.trim(),
+        phone: normalizedPhone,
         password,
       });
     },
     [login],
   );
 
-  /**
-   * Verify the OTP issued for a new/untrusted device.
+  /*
+   * Verify the OTP issued for the current
+   * login attempt.
    */
   const verifyLoginOtp = useCallback(
-    async (otp: string): Promise<LoginResponse> => {
+    async (
+      otp: string,
+    ): Promise<LoginResponse> => {
       if (!lastLoginCredentials) {
         throw new Error(
           "There is no pending login verification.",
+        );
+      }
+
+      const normalizedOtp =
+        normalizeOtp(otp);
+
+      if (!normalizedOtp) {
+        throw new Error(
+          "Verification code is required.",
         );
       }
 
@@ -461,84 +591,113 @@ export function AuthProvider({
         );
       }
 
-      const channel: "EMAIL" | "SMS" =
-        lastLoginCredentials.phone
-          ? "SMS"
-          : "EMAIL";
+      const channel =
+        getVerificationChannel(
+          lastLoginCredentials,
+        );
+
+      if (!channel) {
+        throw new Error(
+          "A valid verification channel is required.",
+        );
+      }
 
       const verification: OtpVerification = {
         destination,
-        otp: otp.trim(),
+        otp: normalizedOtp,
         channel,
       };
 
-      const response = await verifyOtp(
-        verification,
-      );
+      const response =
+        await verifyOtp(
+          verification,
+        );
 
       return establishSession(response);
     },
-    [establishSession, lastLoginCredentials],
+    [
+      establishSession,
+      lastLoginCredentials,
+    ],
   );
 
-  /**
-   * Resend the login verification code.
+  /*
+   * Resend the current login verification OTP.
    */
-  const resendLoginOtp = useCallback(async () => {
-    if (!lastLoginCredentials) {
-      throw new Error(
-        "There is no pending login verification.",
+  const resendLoginOtp =
+    useCallback(async () => {
+      if (!lastLoginCredentials) {
+        throw new Error(
+          "There is no pending login verification.",
+        );
+      }
+
+      const destination =
+        lastLoginCredentials.phone ??
+        lastLoginCredentials.email;
+
+      if (!destination) {
+        throw new Error(
+          "A phone number or email address is required.",
+        );
+      }
+
+      const channel =
+        getVerificationChannel(
+          lastLoginCredentials,
+        );
+
+      if (!channel) {
+        throw new Error(
+          "A valid verification channel is required.",
+        );
+      }
+
+      const payload: OtpRequest = {
+        destination,
+        channel,
+      };
+
+      await requestOtp(payload);
+
+      setPendingVerification(true);
+      setVerificationDestination(
+        destination,
       );
-    }
+      setVerificationChannel(channel);
+    }, [lastLoginCredentials]);
 
-    const destination =
-      lastLoginCredentials.phone ??
-      lastLoginCredentials.email;
-
-    if (!destination) {
-      throw new Error(
-        "A phone number or email address is required.",
-      );
-    }
-
-    const channel: "EMAIL" | "SMS" =
-      lastLoginCredentials.phone
-        ? "SMS"
-        : "EMAIL";
-
-    const payload: OtpRequest = {
-      destination,
-      channel,
-    };
-
-    await requestOtp(payload);
-  }, [lastLoginCredentials]);
-
-  /**
-   * Cancel a pending OTP verification.
+  /*
+   * Cancel the pending OTP flow.
    */
-  const cancelLoginVerification = useCallback(() => {
-    setPendingVerification(false);
-    setVerificationDestination(null);
-    setVerificationChannel(null);
-    setLastLoginCredentials(null);
-  }, []);
+  const cancelLoginVerification =
+    useCallback(() => {
+      setPendingVerification(false);
+      setVerificationDestination(null);
+      setVerificationChannel(null);
+      setLastLoginCredentials(null);
+    }, []);
 
-  /**
+  /*
    * Logout.
+   *
+   * Always clear local state, even if the backend
+   * request fails.
    */
   const logout = useCallback(
     async (): Promise<LogoutResponse> => {
       try {
-        const response = await logoutRequest();
+        const response =
+          await logoutRequest();
 
         clearSession();
 
         return response;
       } catch (error) {
         /*
-         * Clear the local session even when the network request
-         * fails. This prevents a stale authenticated UI state.
+         * Do not leave the browser displaying an
+         * authenticated session after a failed
+         * logout request.
          */
         clearSession();
 
@@ -548,38 +707,55 @@ export function AuthProvider({
     [clearSession],
   );
 
-  /**
-   * Refresh the authenticated session.
+  /*
+   * Refresh the current authenticated session.
    */
   const refreshAuthenticatedSession =
-    useCallback(async (): Promise<boolean> => {
-      try {
-        const response = await refreshSession();
+    useCallback(
+      async (): Promise<boolean> => {
+        try {
+          const response =
+            await refreshSession();
 
-        establishSession(response);
+          establishSession(response);
 
-        return true;
-      } catch {
-        clearSession();
+          return true;
+        } catch {
+          clearSession();
 
-        return false;
-      }
-    }, [clearSession, establishSession]);
+          return false;
+        }
+      },
+      [clearSession, establishSession],
+    );
 
-  /**
+  /*
    * Request password reset.
+   *
+   * The backend remains responsible for:
+   * - account lookup
+   * - rate limiting
+   * - token generation
+   * - token expiry
+   * - delivery
    */
-  const handlePasswordResetRequest = useCallback(
-    async (
-      payload: PasswordResetRequest,
-    ) => {
-      return requestPasswordReset(payload);
-    },
-    [],
-  );
+  const handlePasswordResetRequest =
+    useCallback(
+      async (
+        payload: PasswordResetRequest,
+      ) => {
+        return requestPasswordReset(
+          payload,
+        );
+      },
+      [],
+    );
 
-  /**
+  /*
    * Confirm password reset.
+   *
+   * Password validation and reset-token validation
+   * remain backend responsibilities.
    */
   const handlePasswordResetConfirmation =
     useCallback(
@@ -591,69 +767,89 @@ export function AuthProvider({
       [],
     );
 
-  const contextValue = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      permissions,
-      isAuthenticated,
-      isLoading,
+  /*
+   * Keep the context value memoized so consumers do
+   * not unnecessarily re-render when unrelated state
+   * changes occur.
+   */
+  const contextValue =
+    useMemo<AuthContextValue>(
+      () => ({
+        user,
 
-      login,
-      logout,
-      refreshSession:
+        permissions,
+
+        isAuthenticated,
+
+        isLoading,
+
+        login,
+
+        logout,
+
+        refreshSession:
+          refreshAuthenticatedSession,
+
+        loginMode,
+
+        setLoginMode,
+
+        pendingVerification,
+
+        verificationDestination,
+
+        verificationChannel,
+
+        loginWithEmail,
+
+        loginWithPhone,
+
+        verifyLoginOtp,
+
+        resendLoginOtp,
+
+        cancelLoginVerification,
+
+        requestPasswordReset:
+          handlePasswordResetRequest,
+
+        confirmPasswordReset:
+          handlePasswordResetConfirmation,
+      }),
+      [
+        user,
+        permissions,
+        isAuthenticated,
+        isLoading,
+        login,
+        logout,
         refreshAuthenticatedSession,
-
-      loginMode,
-      setLoginMode,
-
-      pendingVerification,
-      verificationDestination,
-      verificationChannel,
-
-      loginWithEmail,
-      loginWithPhone,
-
-      verifyLoginOtp,
-      resendLoginOtp,
-      cancelLoginVerification,
-
-      requestPasswordReset:
+        loginMode,
+        pendingVerification,
+        verificationDestination,
+        verificationChannel,
+        loginWithEmail,
+        loginWithPhone,
+        verifyLoginOtp,
+        resendLoginOtp,
+        cancelLoginVerification,
         handlePasswordResetRequest,
-
-      confirmPasswordReset:
         handlePasswordResetConfirmation,
-    }),
-    [
-      user,
-      permissions,
-      isAuthenticated,
-      isLoading,
-      login,
-      logout,
-      refreshAuthenticatedSession,
-      loginMode,
-      pendingVerification,
-      verificationDestination,
-      verificationChannel,
-      loginWithEmail,
-      loginWithPhone,
-      verifyLoginOtp,
-      resendLoginOtp,
-      cancelLoginVerification,
-      handlePasswordResetRequest,
-      handlePasswordResetConfirmation,
-    ],
-  );
+      ],
+    );
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider
+      value={contextValue}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
+  const context =
+    useContext(AuthContext);
 
   if (!context) {
     throw new Error(

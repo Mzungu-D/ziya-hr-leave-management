@@ -24,17 +24,34 @@ export interface CreateLeaveRequestParams {
   attachmentUrl?: string | null;
 }
 
+type DbRecord = Record<string, any>;
+
 const ACTIVE_OVERLAP_STATUSES: LeaveRequestStatus[] = [
   "PENDING",
   "MANAGER_APPROVED",
   "HR_APPROVED",
 ];
 
+const MAX_TEXT_LENGTH = 2_000;
+const MAX_ID_LENGTH = 128;
+
+/* -------------------------------------------------------------------------- */
+/* Validation                                                                 */
+/* -------------------------------------------------------------------------- */
+
 function requireId(
   value: string,
   label: string,
   code: string,
 ): string {
+  if (typeof value !== "string") {
+    throw new AppError(
+      400,
+      `${label} is required.`,
+      code,
+    );
+  }
+
   const normalized = value.trim();
 
   if (!normalized) {
@@ -45,15 +62,31 @@ function requireId(
     );
   }
 
+  if (normalized.length > MAX_ID_LENGTH) {
+    throw new AppError(
+      400,
+      `${label} is invalid.`,
+      code,
+    );
+  }
+
   return normalized;
 }
 
 function normalizeOptionalText(
   value: string | null | undefined,
-  max: number,
+  max = MAX_TEXT_LENGTH,
 ): string | null {
   if (value == null) {
     return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new AppError(
+      400,
+      "Text value is invalid.",
+      "INVALID_TEXT",
+    );
   }
 
   const normalized = value
@@ -72,13 +105,79 @@ function normalizeOptionalText(
   return normalized || null;
 }
 
+function normalizeAttachmentUrl(
+  value: string | null | undefined,
+): string | null {
+  const normalized =
+    normalizeOptionalText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  /*
+   * Allow application-relative attachment paths.
+   *
+   * Reject protocol-relative URLs such as:
+   * //evil.example/file
+   */
+  if (
+    normalized.startsWith("/") &&
+    !normalized.startsWith("//")
+  ) {
+    return normalized;
+  }
+
+  try {
+    const url = new URL(normalized);
+
+    /*
+     * Attachment URLs must be HTTPS when absolute.
+     */
+    if (url.protocol !== "https:") {
+      throw new AppError(
+        400,
+        "Attachment URL must use HTTPS.",
+        "INVALID_ATTACHMENT_URL",
+      );
+    }
+
+    return url.toString();
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    throw new AppError(
+      400,
+      "Attachment URL is invalid.",
+      "INVALID_ATTACHMENT_URL",
+    );
+  }
+}
+
 function parseDate(
   value: string,
   label: string,
 ): Date {
+  if (
+    typeof value !== "string" ||
+    !value.trim()
+  ) {
+    throw new AppError(
+      400,
+      `${label} is required.`,
+      "INVALID_DATE",
+    );
+  }
+
   const date = new Date(value);
 
-  if (!Number.isFinite(date.getTime())) {
+  if (
+    !Number.isFinite(
+      date.getTime(),
+    )
+  ) {
     throw new AppError(
       400,
       `${label} must be a valid date.`,
@@ -88,6 +187,10 @@ function parseDate(
 
   return date;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Date Helpers                                                               */
+/* -------------------------------------------------------------------------- */
 
 function startOfUtcDay(
   value: Date,
@@ -106,10 +209,14 @@ function calculateRequestedDays(
   endDate: Date,
 ): number {
   const start =
-    startOfUtcDay(startDate).getTime();
+    startOfUtcDay(
+      startDate,
+    ).getTime();
 
   const end =
-    startOfUtcDay(endDate).getTime();
+    startOfUtcDay(
+      endDate,
+    ).getTime();
 
   if (end < start) {
     throw new AppError(
@@ -121,13 +228,18 @@ function calculateRequestedDays(
 
   return (
     Math.floor(
-      (end - start) / 86400000,
+      (end - start) /
+        86_400_000,
     ) + 1
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Public Response Mapping                                                    */
+/* -------------------------------------------------------------------------- */
+
 function toPublicRequest(
-  request: any,
+  request: DbRecord,
 ) {
   return {
     id: request.id,
@@ -138,15 +250,21 @@ function toPublicRequest(
     employee:
       request.employee
         ? {
-            id: request.employee.id,
+            id:
+              request.employee.id,
+
             employeeId:
               request.employee.employeeId,
+
             firstName:
               request.employee.firstName,
+
             lastName:
               request.employee.lastName,
+
             email:
               request.employee.email,
+
             role:
               request.employee.role,
           }
@@ -160,10 +278,13 @@ function toPublicRequest(
         ? {
             id:
               request.department.id,
+
             name:
               request.department.name,
+
             code:
               request.department.code,
+
             departmentLeadId:
               request.department
                 .departmentLeadId ??
@@ -179,18 +300,24 @@ function toPublicRequest(
         ? {
             id:
               request.leaveType.id,
+
             name:
               request.leaveType.name,
+
             code:
               request.leaveType.code,
+
             daysPerYear:
               request.leaveType
                 .daysPerYear,
+
             requiresDocument:
               request.leaveType
                 .requiresDocument,
+
             isActive:
-              request.leaveType.isActive,
+              request.leaveType
+                .isActive,
           }
         : undefined,
 
@@ -232,9 +359,12 @@ function toPublicRequest(
 
     approvals:
       (
-        request.approvals ?? []
+        request.approvals ??
+        []
       ).map(
-        (approval: any) => ({
+        (
+          approval: DbRecord,
+        ) => ({
           id:
             approval.id,
 
@@ -283,16 +413,37 @@ function toPublicRequest(
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Organization-Scoped Employee                                               */
+/* -------------------------------------------------------------------------- */
+
 async function getEmployeeInOrganization(
   organizationId: string,
   employeeId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedEmployeeId =
+    requireId(
+      employeeId,
+      "Employee ID",
+      "EMPLOYEE_ID_REQUIRED",
+    );
+
   const employee =
     await db.orm.public.Employee
       .include("department")
       .where({
-        id: employeeId,
-        organizationId,
+        id:
+          normalizedEmployeeId,
+
+        organizationId:
+          normalizedOrganizationId,
       })
       .first();
 
@@ -304,7 +455,10 @@ async function getEmployeeInOrganization(
     );
   }
 
-  if (employee.status !== "ACTIVE") {
+  if (
+    employee.status !==
+    "ACTIVE"
+  ) {
     throw new AppError(
       403,
       "Only active employees can use leave management.",
@@ -315,15 +469,36 @@ async function getEmployeeInOrganization(
   return employee;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Organization-Scoped Leave Type                                             */
+/* -------------------------------------------------------------------------- */
+
 async function getLeaveTypeInOrganization(
   organizationId: string,
   leaveTypeId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedLeaveTypeId =
+    requireId(
+      leaveTypeId,
+      "Leave type ID",
+      "LEAVE_TYPE_ID_REQUIRED",
+    );
+
   const leaveType =
     await db.orm.public.LeaveType
       .where({
-        id: leaveTypeId,
-        organizationId,
+        id:
+          normalizedLeaveTypeId,
+
+        organizationId:
+          normalizedOrganizationId,
       })
       .first();
 
@@ -335,7 +510,9 @@ async function getLeaveTypeInOrganization(
     );
   }
 
-  if (!leaveType.isActive) {
+  if (
+    !leaveType.isActive
+  ) {
     throw new AppError(
       409,
       "This leave type is inactive and cannot be requested.",
@@ -346,10 +523,28 @@ async function getLeaveTypeInOrganization(
   return leaveType;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Organization-Scoped Leave Request                                          */
+/* -------------------------------------------------------------------------- */
+
 async function getRequestInOrganization(
   organizationId: string,
   leaveRequestId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedLeaveRequestId =
+    requireId(
+      leaveRequestId,
+      "Leave request ID",
+      "LEAVE_REQUEST_ID_REQUIRED",
+    );
+
   const request =
     await db.orm.public.LeaveRequest
       .include("employee")
@@ -357,14 +552,23 @@ async function getRequestInOrganization(
       .include("leaveType")
       .include("approvals")
       .where({
-        id: leaveRequestId,
+        id:
+          normalizedLeaveRequestId,
       })
       .first();
 
+  /*
+   * IMPORTANT:
+   *
+   * LeaveRequest itself does not rely on a client-supplied
+   * organizationId. Tenant ownership is verified through
+   * the employee attached to the request.
+   */
   if (
     !request ||
-    request.employee?.organizationId !==
-      organizationId
+    request.employee
+      ?.organizationId !==
+      normalizedOrganizationId
   ) {
     throw new AppError(
       404,
@@ -376,33 +580,51 @@ async function getRequestInOrganization(
   return request;
 }
 
-async function ensureNoDepartmentCapacityConflict(
+/* -------------------------------------------------------------------------- */
+/* Employee Overlap Protection                                                */
+/* -------------------------------------------------------------------------- */
+
+async function ensureNoEmployeeOverlap(
+  client: any,
   organizationId: string,
-  departmentId: string | null,
+  employeeId: string,
   startDate: Date,
   endDate: Date,
 ): Promise<void> {
-  if (!departmentId) {
-    return;
-  }
-
   const requests =
-    await db.orm.public.LeaveRequest
+    await client.orm.public.LeaveRequest
+      .include("employee")
       .where({
-        departmentId,
+        employeeId,
       })
       .all();
 
-  const overlappingEmployeeIds =
-    new Set<string>();
-
   const start =
-    startOfUtcDay(startDate).getTime();
+    startOfUtcDay(
+      startDate,
+    ).getTime();
 
   const end =
-    startOfUtcDay(endDate).getTime();
+    startOfUtcDay(
+      endDate,
+    ).getTime();
 
-  for (const request of requests) {
+  for (
+    const request of
+      requests as DbRecord[]
+  ) {
+    /*
+     * Never trust the employeeId alone for tenant
+     * isolation when evaluating an existing request.
+     */
+    if (
+      request.employee
+        ?.organizationId !==
+      organizationId
+    ) {
+      continue;
+    }
+
     if (
       !ACTIVE_OVERLAP_STATUSES.includes(
         request.status as LeaveRequestStatus,
@@ -413,12 +635,103 @@ async function ensureNoDepartmentCapacityConflict(
 
     const requestStart =
       startOfUtcDay(
-        new Date(request.startDate),
+        new Date(
+          request.startDate,
+        ),
       ).getTime();
 
     const requestEnd =
       startOfUtcDay(
-        new Date(request.endDate),
+        new Date(
+          request.endDate,
+        ),
+      ).getTime();
+
+    if (
+      requestStart <= end &&
+      requestEnd >= start
+    ) {
+      throw new AppError(
+        409,
+        "You already have an active leave request overlapping the selected dates.",
+        "EMPLOYEE_LEAVE_OVERLAP",
+      );
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Department Capacity Protection                                             */
+/* -------------------------------------------------------------------------- */
+
+async function ensureNoDepartmentCapacityConflict(
+  client: any,
+  organizationId: string,
+  departmentId: string | null,
+  startDate: Date,
+  endDate: Date,
+): Promise<void> {
+  if (!departmentId) {
+    return;
+  }
+
+  const requests =
+    await client.orm.public.LeaveRequest
+      .include("employee")
+      .where({
+        departmentId,
+      })
+      .all();
+
+  const overlappingEmployeeIds =
+    new Set<string>();
+
+  const start =
+    startOfUtcDay(
+      startDate,
+    ).getTime();
+
+  const end =
+    startOfUtcDay(
+      endDate,
+    ).getTime();
+
+  for (
+    const request of
+      requests as DbRecord[]
+  ) {
+    /*
+     * Explicit organization verification prevents a
+     * cross-tenant capacity calculation.
+     */
+    if (
+      request.employee
+        ?.organizationId !==
+      organizationId
+    ) {
+      continue;
+    }
+
+    if (
+      !ACTIVE_OVERLAP_STATUSES.includes(
+        request.status as LeaveRequestStatus,
+      )
+    ) {
+      continue;
+    }
+
+    const requestStart =
+      startOfUtcDay(
+        new Date(
+          request.startDate,
+        ),
+      ).getTime();
+
+    const requestEnd =
+      startOfUtcDay(
+        new Date(
+          request.endDate,
+        ),
       ).getTime();
 
     if (
@@ -431,6 +744,10 @@ async function ensureNoDepartmentCapacityConflict(
     }
   }
 
+  /*
+   * Three existing employees means the fourth request
+   * must be rejected.
+   */
   if (
     overlappingEmployeeIds.size >= 3
   ) {
@@ -440,9 +757,11 @@ async function ensureNoDepartmentCapacityConflict(
       "DEPARTMENT_LEAVE_CAPACITY_EXCEEDED",
     );
   }
-
-  void organizationId;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Leave Balance                                                               */
+/* -------------------------------------------------------------------------- */
 
 async function getOrCreateBalance(
   tx: any,
@@ -464,44 +783,85 @@ async function getOrCreateBalance(
     return existing;
   }
 
-  return tx.orm.public.LeaveBalance.create({
-    id: randomUUID(),
-    employeeId,
-    leaveTypeId,
-    year,
-    allocatedDays:
-      Math.max(
-        allocatedDays,
+  const now =
+    new Date().toISOString();
+
+  return tx.orm.public.LeaveBalance.create(
+    {
+      id:
+        randomUUID(),
+
+      employeeId,
+
+      leaveTypeId,
+
+      year,
+
+      allocatedDays:
+        Math.max(
+          Number(
+            allocatedDays,
+          ) || 0,
+          0,
+        ),
+
+      pendingDays:
         0,
-      ),
-    pendingDays: 0,
-    usedDays: 0,
-    createdAt:
-      new Date().toISOString(),
-    updatedAt:
-      new Date().toISOString(),
-  });
+
+      usedDays:
+        0,
+
+      createdAt:
+        now,
+
+      updatedAt:
+        now,
+    },
+  );
 }
 
 function assertBalanceAvailable(
-  balance: any,
+  balance: DbRecord,
   requestedDays: number,
 ): void {
+  const allocatedDays =
+    Number(
+      balance.allocatedDays,
+    ) || 0;
+
+  const usedDays =
+    Number(
+      balance.usedDays,
+    ) || 0;
+
+  const pendingDays =
+    Number(
+      balance.pendingDays,
+    ) || 0;
+
   const available =
-    balance.allocatedDays -
-    balance.usedDays -
-    balance.pendingDays;
+    allocatedDays -
+    usedDays -
+    pendingDays;
 
   if (
-    available < requestedDays
+    available <
+    requestedDays
   ) {
     throw new AppError(
       409,
-      `Insufficient leave balance. ${available} day(s) are available for this leave type.`,
+      `Insufficient leave balance. ${Math.max(
+        available,
+        0,
+      )} day(s) are available for this leave type.`,
       "INSUFFICIENT_LEAVE_BALANCE",
     );
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Leave Types                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export async function listLeaveTypes(
   organizationId: string,
@@ -522,7 +882,9 @@ export async function listLeaveTypes(
       .all();
 
   return leaveTypes.map(
-    (leaveType: any) => ({
+    (
+      leaveType: DbRecord,
+    ) => ({
       id:
         leaveType.id,
 
@@ -553,17 +915,40 @@ export async function listLeaveTypes(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Leave Balances                                                              */
+/* -------------------------------------------------------------------------- */
+
 export async function getLeaveBalances(
   organizationId: string,
   employeeId: string,
   year =
     new Date().getUTCFullYear(),
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
   const employee =
     await getEmployeeInOrganization(
-      organizationId,
+      normalizedOrganizationId,
       employeeId,
     );
+
+  if (
+    !Number.isInteger(year) ||
+    year < 2000 ||
+    year > 2100
+  ) {
+    throw new AppError(
+      400,
+      "Leave balance year is invalid.",
+      "INVALID_LEAVE_BALANCE_YEAR",
+    );
+  }
 
   const balances =
     await db.orm.public.LeaveBalance
@@ -571,47 +956,68 @@ export async function getLeaveBalances(
       .where({
         employeeId:
           employee.id,
+
         year,
       })
       .all();
 
   return balances.map(
-    (balance: any) => ({
-      id:
-        balance.id,
+    (
+      balance: DbRecord,
+    ) => {
+      const allocatedDays =
+        Number(
+          balance.allocatedDays,
+        ) || 0;
 
-      employeeId:
-        balance.employeeId,
+      const pendingDays =
+        Number(
+          balance.pendingDays,
+        ) || 0;
 
-      leaveTypeId:
-        balance.leaveTypeId,
+      const usedDays =
+        Number(
+          balance.usedDays,
+        ) || 0;
 
-      leaveTypeName:
-        balance.leaveType?.name ??
-        "Unknown leave type",
+      return {
+        id:
+          balance.id,
 
-      year:
-        balance.year,
+        employeeId:
+          balance.employeeId,
 
-      allocatedDays:
-        balance.allocatedDays,
+        leaveTypeId:
+          balance.leaveTypeId,
 
-      pendingDays:
-        balance.pendingDays,
+        leaveTypeName:
+          balance.leaveType?.name ??
+          "Unknown leave type",
 
-      usedDays:
-        balance.usedDays,
+        year:
+          balance.year,
 
-      remainingDays:
-        Math.max(
-          balance.allocatedDays -
-            balance.pendingDays -
-            balance.usedDays,
-          0,
-        ),
-    }),
+        allocatedDays,
+
+        pendingDays,
+
+        usedDays,
+
+        remainingDays:
+          Math.max(
+            allocatedDays -
+              pendingDays -
+              usedDays,
+            0,
+          ),
+      };
+    },
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Create Leave Request                                                        */
+/* -------------------------------------------------------------------------- */
 
 export async function createLeaveRequest(
   params: CreateLeaveRequestParams,
@@ -670,16 +1076,16 @@ export async function createLeaveRequest(
   const reason =
     normalizeOptionalText(
       params.reason,
-      2000,
     );
 
   const attachmentUrl =
-    normalizeOptionalText(
+    normalizeAttachmentUrl(
       params.attachmentUrl,
-      2000,
     );
 
-  if (requestedDays <= 0) {
+  if (
+    requestedDays <= 0
+  ) {
     throw new AppError(
       400,
       "Leave must contain at least one day.",
@@ -698,21 +1104,15 @@ export async function createLeaveRequest(
     );
   }
 
-  await ensureNoDepartmentCapacityConflict(
-    organizationId,
-    employee.departmentId ??
-      null,
-    startDate,
-    endDate,
-  );
-
   const year =
     startDate.getUTCFullYear();
 
   const endYear =
     endDate.getUTCFullYear();
 
-  if (year !== endYear) {
+  if (
+    year !== endYear
+  ) {
     throw new AppError(
       400,
       "A leave request cannot cross calendar years. Submit separate requests for each year.",
@@ -723,6 +1123,30 @@ export async function createLeaveRequest(
   const created =
     await db.transaction(
       async (tx: any) => {
+        /*
+         * Recheck inside the transaction.
+         *
+         * This prevents a request that passed an earlier
+         * validation from being written after another leave
+         * request changed the relevant state.
+         */
+        await ensureNoEmployeeOverlap(
+          tx,
+          organizationId,
+          employee.id,
+          startDate,
+          endDate,
+        );
+
+        await ensureNoDepartmentCapacityConflict(
+          tx,
+          organizationId,
+          employee.departmentId ??
+            null,
+          startDate,
+          endDate,
+        );
+
         const balance =
           await getOrCreateBalance(
             tx,
@@ -743,7 +1167,8 @@ export async function createLeaveRequest(
         const request =
           await tx.orm.public.LeaveRequest.create(
             {
-              id: randomUUID(),
+              id:
+                randomUUID(),
 
               employeeId:
                 employee.id,
@@ -755,11 +1180,19 @@ export async function createLeaveRequest(
               leaveTypeId:
                 leaveType.id,
 
+              /*
+               * Leave is a calendar-day concept.
+               * Persist normalized UTC day boundaries.
+               */
               startDate:
-                startDate.toISOString(),
+                startOfUtcDay(
+                  startDate,
+                ).toISOString(),
 
               endDate:
-                endDate.toISOString(),
+                startOfUtcDay(
+                  endDate,
+                ).toISOString(),
 
               requestedDays,
 
@@ -795,11 +1228,16 @@ export async function createLeaveRequest(
 
         await tx.orm.public.LeaveBalance
           .where({
-            id: balance.id,
+            id:
+              balance.id,
           })
           .update({
             pendingDays:
-              balance.pendingDays +
+              (
+                Number(
+                  balance.pendingDays,
+                ) || 0
+              ) +
               requestedDays,
 
             updatedAt:
@@ -816,13 +1254,24 @@ export async function createLeaveRequest(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Employee Leave Requests                                                    */
+/* -------------------------------------------------------------------------- */
+
 export async function listMyLeaveRequests(
   organizationId: string,
   employeeId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
   const employee =
     await getEmployeeInOrganization(
-      organizationId,
+      normalizedOrganizationId,
       employeeId,
     );
 
@@ -839,47 +1288,65 @@ export async function listMyLeaveRequests(
       .all();
 
   return requests.map(
-    toPublicRequest,
+    (
+      request: DbRecord,
+    ) =>
+      toPublicRequest(
+        request,
+      ),
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Get Leave Request                                                           */
+/* -------------------------------------------------------------------------- */
 
 export async function getLeaveRequest(
   organizationId: string,
   employeeId: string,
   leaveRequestId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedEmployeeId =
+    requireId(
+      employeeId,
+      "Employee ID",
+      "EMPLOYEE_ID_REQUIRED",
+    );
+
   const request =
     await getRequestInOrganization(
-      organizationId,
-      requireId(
-        leaveRequestId,
-        "Leave request ID",
-        "LEAVE_REQUEST_ID_REQUIRED",
-      ),
+      normalizedOrganizationId,
+      leaveRequestId,
     );
 
   const actor =
     await getEmployeeInOrganization(
-      organizationId,
-      employeeId,
+      normalizedOrganizationId,
+      normalizedEmployeeId,
     );
 
   const isOwner =
     request.employeeId ===
-    employeeId;
+    normalizedEmployeeId;
 
-  const isHr =
-    [
-      "HR_ADMIN",
-      "SUPER_ADMIN",
-    ].includes(
-      actor.role,
-    );
+  const isHr = [
+    "HR_ADMIN",
+    "SUPER_ADMIN",
+  ].includes(
+    actor.role,
+  );
 
   const isDepartmentLead =
     request.department
       ?.departmentLeadId ===
-    employeeId;
+    normalizedEmployeeId;
 
   if (
     !isOwner &&
@@ -898,10 +1365,14 @@ export async function getLeaveRequest(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Manager Authorization                                                      */
+/* -------------------------------------------------------------------------- */
+
 async function ensureManagerCanAct(
   organizationId: string,
   actorId: string,
-  request: any,
+  request: DbRecord,
 ): Promise<void> {
   const actor =
     await getEmployeeInOrganization(
@@ -914,7 +1385,9 @@ async function ensureManagerCanAct(
       "MANAGER",
       "HR_ADMIN",
       "SUPER_ADMIN",
-    ].includes(actor.role)
+    ].includes(
+      actor.role,
+    )
   ) {
     throw new AppError(
       403,
@@ -925,7 +1398,7 @@ async function ensureManagerCanAct(
 
   if (
     request.employeeId ===
-    actorId
+    actor.id
   ) {
     throw new AppError(
       403,
@@ -937,12 +1410,12 @@ async function ensureManagerCanAct(
   const isDepartmentLead =
     request.department
       ?.departmentLeadId ===
-    actorId;
+    actor.id;
 
   const isReportingManager =
     request.employee
       ?.reportsToId ===
-    actorId;
+    actor.id;
 
   if (
     !isDepartmentLead &&
@@ -955,6 +1428,10 @@ async function ensureManagerCanAct(
     );
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* HR Authorization                                                           */
+/* -------------------------------------------------------------------------- */
 
 async function ensureHrCanAct(
   organizationId: string,
@@ -970,7 +1447,9 @@ async function ensureHrCanAct(
     ![
       "HR_ADMIN",
       "SUPER_ADMIN",
-    ].includes(actor.role)
+    ].includes(
+      actor.role,
+    )
   ) {
     throw new AppError(
       403,
@@ -980,13 +1459,24 @@ async function ensureHrCanAct(
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Manager Pending Requests                                                   */
+/* -------------------------------------------------------------------------- */
+
 export async function listManagerPendingRequests(
   organizationId: string,
   actorId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
   const actor =
     await getEmployeeInOrganization(
-      organizationId,
+      normalizedOrganizationId,
       actorId,
     );
 
@@ -995,7 +1485,9 @@ export async function listManagerPendingRequests(
       "MANAGER",
       "HR_ADMIN",
       "SUPER_ADMIN",
-    ].includes(actor.role)
+    ].includes(
+      actor.role,
+    )
   ) {
     throw new AppError(
       403,
@@ -1018,30 +1510,48 @@ export async function listManagerPendingRequests(
 
   return requests
     .filter(
-      (request: any) =>
+      (
+        request: DbRecord,
+      ) =>
         request.employee
           ?.organizationId ===
-          organizationId &&
+          normalizedOrganizationId &&
         (
           request.department
             ?.departmentLeadId ===
-            actorId ||
+            actor.id ||
           request.employee
             ?.reportsToId ===
-            actorId
+            actor.id
         ),
     )
     .map(
-      toPublicRequest,
+      (
+        request: DbRecord,
+      ) =>
+        toPublicRequest(
+          request,
+        ),
     );
 }
+
+/* -------------------------------------------------------------------------- */
+/* HR Pending Requests                                                        */
+/* -------------------------------------------------------------------------- */
 
 export async function listHrPendingRequests(
   organizationId: string,
   actorId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
   await ensureHrCanAct(
-    organizationId,
+    normalizedOrganizationId,
     actorId,
   );
 
@@ -1059,15 +1569,26 @@ export async function listHrPendingRequests(
 
   return requests
     .filter(
-      (request: any) =>
+      (
+        request: DbRecord,
+      ) =>
         request.employee
           ?.organizationId ===
-        organizationId,
+        normalizedOrganizationId,
     )
     .map(
-      toPublicRequest,
+      (
+        request: DbRecord,
+      ) =>
+        toPublicRequest(
+          request,
+        ),
     );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Approval Transaction                                                       */
+/* -------------------------------------------------------------------------- */
 
 async function writeApproval(
   organizationId: string,
@@ -1077,18 +1598,39 @@ async function writeApproval(
   comments: string | null,
   stage: "MANAGER" | "HR",
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedActorId =
+    requireId(
+      actorId,
+      "Actor ID",
+      "ACTOR_ID_REQUIRED",
+    );
+
+  const normalizedRequestId =
+    requireId(
+      leaveRequestId,
+      "Leave request ID",
+      "LEAVE_REQUEST_ID_REQUIRED",
+    );
+
   const request =
     await getRequestInOrganization(
-      organizationId,
-      leaveRequestId,
+      normalizedOrganizationId,
+      normalizedRequestId,
     );
 
   if (
     stage === "MANAGER"
   ) {
     await ensureManagerCanAct(
-      organizationId,
-      actorId,
+      normalizedOrganizationId,
+      normalizedActorId,
       request,
     );
 
@@ -1104,8 +1646,8 @@ async function writeApproval(
     }
   } else {
     await ensureHrCanAct(
-      organizationId,
-      actorId,
+      normalizedOrganizationId,
+      normalizedActorId,
     );
 
     if (
@@ -1120,13 +1662,9 @@ async function writeApproval(
     }
   }
 
-  const now =
-    new Date().toISOString();
-
   const normalizedComments =
     normalizeOptionalText(
       comments,
-      2000,
     );
 
   const updated =
@@ -1139,7 +1677,7 @@ async function writeApproval(
             .include("leaveType")
             .where({
               id:
-                leaveRequestId,
+                normalizedRequestId,
             })
             .first();
 
@@ -1147,7 +1685,7 @@ async function writeApproval(
           !fresh ||
           fresh.employee
             ?.organizationId !==
-            organizationId
+            normalizedOrganizationId
         ) {
           throw new AppError(
             404,
@@ -1178,6 +1716,9 @@ async function writeApproval(
             : stage === "MANAGER"
               ? "MANAGER_APPROVED"
               : "HR_APPROVED";
+
+        const now =
+          new Date().toISOString();
 
         const updateData:
           Record<
@@ -1212,25 +1753,48 @@ async function writeApproval(
             now;
         }
 
+        /*
+         * Conditional state update.
+         *
+         * The status is part of the WHERE condition so a stale
+         * approval cannot overwrite a request that has already
+         * been processed by another transaction.
+         */
         const updatedRequest =
           await tx.orm.public.LeaveRequest
             .where({
               id:
-                leaveRequestId,
+                normalizedRequestId,
+
+              status:
+                expectedStatus,
             })
             .update(
               updateData,
             );
+
+        if (
+          !updatedRequest ||
+          updatedRequest.status !==
+            nextStatus
+        ) {
+          throw new AppError(
+            409,
+            "This leave request was changed by another action. Please refresh and try again.",
+            "LEAVE_REQUEST_STATE_CHANGED",
+          );
+        }
 
         await tx.orm.public.LeaveApproval.create(
           {
             id:
               randomUUID(),
 
-            leaveRequestId,
+            leaveRequestId:
+              normalizedRequestId,
 
             approverId:
-              actorId,
+              normalizedActorId,
 
             action,
 
@@ -1242,82 +1806,62 @@ async function writeApproval(
           },
         );
 
+        const year =
+          new Date(
+            fresh.startDate,
+          ).getUTCFullYear();
+
+        const balance =
+          await tx.orm.public.LeaveBalance
+            .where({
+              employeeId:
+                fresh.employeeId,
+
+              leaveTypeId:
+                fresh.leaveTypeId,
+
+              year,
+            })
+            .first();
+
+        if (!balance) {
+          throw new AppError(
+            409,
+            "Leave balance could not be found for this request.",
+            "LEAVE_BALANCE_NOT_FOUND",
+          );
+        }
+
+        const pendingDays =
+          Number(
+            balance.pendingDays,
+          ) || 0;
+
+        const requestedDays =
+          Number(
+            fresh.requestedDays,
+          ) || 0;
+
+        if (
+          requestedDays <= 0
+        ) {
+          throw new AppError(
+            409,
+            "The leave request contains an invalid number of days.",
+            "INVALID_REQUESTED_DAYS",
+          );
+        }
+
+        /*
+         * Rejection releases the pending balance.
+         */
         if (
           action ===
           "REJECTED"
         ) {
-          const year =
-            new Date(
-              fresh.startDate,
-            ).getUTCFullYear();
-
-          const balance =
-            await tx.orm.public.LeaveBalance
-              .where({
-                employeeId:
-                  fresh.employeeId,
-
-                leaveTypeId:
-                  fresh.leaveTypeId,
-
-                year,
-              })
-              .first();
-
-          if (balance) {
-            await tx.orm.public.LeaveBalance
-              .where({
-                id:
-                  balance.id,
-              })
-              .update({
-                pendingDays:
-                  Math.max(
-                    balance.pendingDays -
-                      fresh.requestedDays,
-                    0,
-                  ),
-
-                updatedAt:
-                  now,
-              });
-          }
-        }
-
-        if (
-          stage === "HR" &&
-          action ===
-            "APPROVED"
-        ) {
-          const year =
-            new Date(
-              fresh.startDate,
-            ).getUTCFullYear();
-
-          const balance =
-            await tx.orm.public.LeaveBalance
-              .where({
-                employeeId:
-                  fresh.employeeId,
-
-                leaveTypeId:
-                  fresh.leaveTypeId,
-
-                year,
-              })
-              .first();
-
-          if (!balance) {
-            throw new AppError(
-              409,
-              "Leave balance could not be found for the approved request.",
-              "LEAVE_BALANCE_NOT_FOUND",
-            );
-          }
-
           if (
-            balance.pendingDays <
-            fresh.requestedDays
+            pendingDays <
+            requestedDays
           ) {
             throw new AppError(
               409,
@@ -1333,12 +1877,51 @@ async function writeApproval(
             })
             .update({
               pendingDays:
-                balance.pendingDays -
-                fresh.requestedDays,
+                pendingDays -
+                requestedDays,
+
+              updatedAt:
+                now,
+            });
+        }
+
+        /*
+         * Final HR approval moves the days from pending
+         * to used.
+         */
+        if (
+          stage === "HR" &&
+          action ===
+            "APPROVED"
+        ) {
+          if (
+            pendingDays <
+            requestedDays
+          ) {
+            throw new AppError(
+              409,
+              "Leave balance is inconsistent with this request.",
+              "LEAVE_BALANCE_INCONSISTENT",
+            );
+          }
+
+          await tx.orm.public.LeaveBalance
+            .where({
+              id:
+                balance.id,
+            })
+            .update({
+              pendingDays:
+                pendingDays -
+                requestedDays,
 
               usedDays:
-                balance.usedDays +
-                fresh.requestedDays,
+                (
+                  Number(
+                    balance.usedDays,
+                  ) || 0
+                ) +
+                requestedDays,
 
               updatedAt:
                 now,
@@ -1350,10 +1933,14 @@ async function writeApproval(
     );
 
   return getRequestInOrganization(
-    organizationId,
+    normalizedOrganizationId,
     updated.id,
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Manager Approval                                                           */
+/* -------------------------------------------------------------------------- */
 
 export async function managerApproveLeaveRequest(
   organizationId: string,
@@ -1371,6 +1958,10 @@ export async function managerApproveLeaveRequest(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Manager Rejection                                                          */
+/* -------------------------------------------------------------------------- */
+
 export async function managerRejectLeaveRequest(
   organizationId: string,
   actorId: string,
@@ -1386,6 +1977,10 @@ export async function managerRejectLeaveRequest(
     "MANAGER",
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* HR Approval                                                                */
+/* -------------------------------------------------------------------------- */
 
 export async function hrApproveLeaveRequest(
   organizationId: string,
@@ -1403,6 +1998,10 @@ export async function hrApproveLeaveRequest(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* HR Rejection                                                               */
+/* -------------------------------------------------------------------------- */
+
 export async function hrRejectLeaveRequest(
   organizationId: string,
   actorId: string,
@@ -1419,20 +2018,54 @@ export async function hrRejectLeaveRequest(
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Cancel Leave Request                                                       */
+/* -------------------------------------------------------------------------- */
+
 export async function cancelLeaveRequest(
   organizationId: string,
   employeeId: string,
   leaveRequestId: string,
 ) {
+  const normalizedOrganizationId =
+    requireId(
+      organizationId,
+      "Organization ID",
+      "ORGANIZATION_ID_REQUIRED",
+    );
+
+  const normalizedEmployeeId =
+    requireId(
+      employeeId,
+      "Employee ID",
+      "EMPLOYEE_ID_REQUIRED",
+    );
+
+  const normalizedRequestId =
+    requireId(
+      leaveRequestId,
+      "Leave request ID",
+      "LEAVE_REQUEST_ID_REQUIRED",
+    );
+
+  /*
+   * Verify that the actor is still an active employee
+   * in this organization.
+   */
+  await getEmployeeInOrganization(
+    normalizedOrganizationId,
+    normalizedEmployeeId,
+  );
+
   const request =
     await getRequestInOrganization(
-      organizationId,
-      leaveRequestId,
+      normalizedOrganizationId,
+      normalizedRequestId,
     );
 
   if (
     request.employeeId !==
-    employeeId
+    normalizedEmployeeId
   ) {
     throw new AppError(
       403,
@@ -1456,28 +2089,24 @@ export async function cancelLeaveRequest(
     );
   }
 
-  const now =
-    new Date().toISOString();
-
-  const year =
-    new Date(
-      request.startDate,
-    ).getUTCFullYear();
-
   await db.transaction(
     async (tx: any) => {
       const fresh =
         await tx.orm.public.LeaveRequest
+          .include("employee")
           .where({
             id:
-              request.id,
+              normalizedRequestId,
           })
           .first();
 
       if (
         !fresh ||
+        fresh.employee
+          ?.organizationId !==
+          normalizedOrganizationId ||
         fresh.employeeId !==
-          employeeId ||
+          normalizedEmployeeId ||
         ![
           "PENDING",
           "MANAGER_APPROVED",
@@ -1492,52 +2121,117 @@ export async function cancelLeaveRequest(
         );
       }
 
-      await tx.orm.public.LeaveRequest
-        .where({
-          id:
-            fresh.id,
-        })
-        .update({
-          status:
-            "CANCELLED",
+      const now =
+        new Date().toISOString();
 
-          updatedAt:
-            now,
-        });
-
-      const balance =
-        await tx.orm.public.LeaveBalance
-          .where({
-            employeeId,
-            leaveTypeId:
-              fresh.leaveTypeId,
-            year,
-          })
-          .first();
-
-      if (balance) {
-        await tx.orm.public.LeaveBalance
+      /*
+       * Conditional cancellation prevents a second action
+       * from cancelling an already changed request.
+       */
+      const updatedRequest =
+        await tx.orm.public.LeaveRequest
           .where({
             id:
-              balance.id,
+              fresh.id,
+
+            status:
+              fresh.status,
           })
           .update({
-            pendingDays:
-              Math.max(
-                balance.pendingDays -
-                  fresh.requestedDays,
-                0,
-              ),
+            status:
+              "CANCELLED",
 
             updatedAt:
               now,
           });
+
+      if (
+        !updatedRequest ||
+        updatedRequest.status !==
+          "CANCELLED"
+      ) {
+        throw new AppError(
+          409,
+          "This leave request was changed by another action. Please refresh and try again.",
+          "LEAVE_REQUEST_STATE_CHANGED",
+        );
       }
+
+      const year =
+        new Date(
+          fresh.startDate,
+        ).getUTCFullYear();
+
+      const balance =
+        await tx.orm.public.LeaveBalance
+          .where({
+            employeeId:
+              normalizedEmployeeId,
+
+            leaveTypeId:
+              fresh.leaveTypeId,
+
+            year,
+          })
+          .first();
+
+      if (!balance) {
+        throw new AppError(
+          409,
+          "Leave balance could not be found for this request.",
+          "LEAVE_BALANCE_NOT_FOUND",
+        );
+      }
+
+      const pendingDays =
+        Number(
+          balance.pendingDays,
+        ) || 0;
+
+      const requestedDays =
+        Number(
+          fresh.requestedDays,
+        ) || 0;
+
+      if (
+        requestedDays <= 0
+      ) {
+        throw new AppError(
+          409,
+          "The leave request contains an invalid number of days.",
+          "INVALID_REQUESTED_DAYS",
+        );
+      }
+
+      if (
+        pendingDays <
+        requestedDays
+      ) {
+        throw new AppError(
+          409,
+          "Leave balance is inconsistent with this request.",
+          "LEAVE_BALANCE_INCONSISTENT",
+        );
+      }
+
+      await tx.orm.public.LeaveBalance
+        .where({
+          id:
+            balance.id,
+        })
+        .update({
+          pendingDays:
+            pendingDays -
+            requestedDays,
+
+          updatedAt:
+            now,
+        });
     },
   );
 
   return getRequestInOrganization(
-    organizationId,
-    request.id,
+    normalizedOrganizationId,
+    normalizedRequestId,
   );
 }

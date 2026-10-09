@@ -1,0 +1,203 @@
+[
+  {
+    "id": "table.SystemSetting",
+    "label": "Create table \"SystemSetting\"",
+    "summary": "Creates table \"SystemSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "SystemSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"SystemSetting\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"SystemSetting\"",
+        "sql": "CREATE TABLE \"public\".\"SystemSetting\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"description\" text,\n  \"id\" text NOT NULL,\n  \"key\" text NOT NULL,\n  \"organizationId\" text NOT NULL,\n  \"type\" text DEFAULT 'STRING' NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"value\" text NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"SystemSetting_type_check_50739480\" CHECK (\"type\" IN ('STRING', 'INTEGER', 'BOOLEAN', 'JSON'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"SystemSetting\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.SystemSetting.SystemSetting_organizationId_key_key",
+    "label": "Add unique constraint on \"SystemSetting\" (organizationId, key)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "SystemSetting_organizationId_key_key",
+        "table": "SystemSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"SystemSetting_organizationId_key_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SystemSetting_organizationId_key_key",
+          "public",
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"SystemSetting_organizationId_key_key\"",
+        "sql": "ALTER TABLE \"public\".\"SystemSetting\" ADD CONSTRAINT \"SystemSetting_organizationId_key_key\" UNIQUE (\"organizationId\", \"key\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"SystemSetting_organizationId_key_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SystemSetting_organizationId_key_key",
+          "public",
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SystemSetting.SystemSetting_organizationId_idx_2e17ef41",
+    "label": "Create index \"SystemSetting_organizationId_idx_2e17ef41\" on \"SystemSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SystemSetting_organizationId_idx_2e17ef41",
+        "table": "SystemSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SystemSetting_organizationId_idx_2e17ef41\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SystemSetting_organizationId_idx_2e17ef41\"",
+        "sql": "CREATE INDEX \"SystemSetting_organizationId_idx_2e17ef41\" ON \"public\".\"SystemSetting\" (\"organizationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SystemSetting_organizationId_idx_2e17ef41\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.SystemSetting.SystemSetting_organizationId_type_idx_ff4b8294",
+    "label": "Create index \"SystemSetting_organizationId_type_idx_ff4b8294\" on \"SystemSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "SystemSetting_organizationId_type_idx_ff4b8294",
+        "table": "SystemSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"SystemSetting_organizationId_type_idx_ff4b8294\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting_organizationId_type_idx_ff4b8294\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"SystemSetting_organizationId_type_idx_ff4b8294\"",
+        "sql": "CREATE INDEX \"SystemSetting_organizationId_type_idx_ff4b8294\" ON \"public\".\"SystemSetting\" (\"organizationId\", \"type\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"SystemSetting_organizationId_type_idx_ff4b8294\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"SystemSetting_organizationId_type_idx_ff4b8294\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.SystemSetting.SystemSetting_organizationId_fkey",
+    "label": "Add foreign key \"SystemSetting_organizationId_fkey\" on \"SystemSetting\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "SystemSetting_organizationId_fkey",
+        "table": "SystemSetting"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"SystemSetting_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SystemSetting_organizationId_fkey",
+          "public",
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"SystemSetting_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"SystemSetting\"\nADD CONSTRAINT \"SystemSetting_organizationId_fkey\"\nFOREIGN KEY (\"organizationId\")\nREFERENCES \"public\".\"Organization\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"SystemSetting_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "SystemSetting_organizationId_fkey",
+          "public",
+          "\"public\".\"SystemSetting\""
+        ]
+      }
+    ]
+  }
+]

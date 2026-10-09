@@ -1,0 +1,677 @@
+[
+  {
+    "id": "table.Holiday",
+    "label": "Create table \"Holiday\"",
+    "summary": "Creates table \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Holiday\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Holiday\"",
+        "sql": "CREATE TABLE \"public\".\"Holiday\" (\n  \"category\" text DEFAULT 'PUBLIC' NOT NULL,\n  \"countryCode\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"date\" timestamptz NOT NULL,\n  \"description\" text,\n  \"id\" text NOT NULL,\n  \"isActive\" bool DEFAULT true NOT NULL,\n  \"isRecurring\" bool DEFAULT false NOT NULL,\n  \"isReligious\" bool DEFAULT false NOT NULL,\n  \"name\" text NOT NULL,\n  \"organizationId\" text NOT NULL,\n  \"regionCode\" text,\n  \"religion\" text,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Holiday\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.Policy",
+    "label": "Create table \"Policy\"",
+    "summary": "Creates table \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"Policy\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"Policy\"",
+        "sql": "CREATE TABLE \"public\".\"Policy\" (\n  \"archivedAt\" timestamptz,\n  \"code\" text NOT NULL,\n  \"content\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"description\" text,\n  \"effectiveFrom\" timestamptz,\n  \"effectiveTo\" timestamptz,\n  \"id\" text NOT NULL,\n  \"organizationId\" text NOT NULL,\n  \"publishedAt\" timestamptz,\n  \"status\" text DEFAULT 'DRAFT' NOT NULL,\n  \"title\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"version\" int4 DEFAULT 1 NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"Policy_status_check_bc64f66b\" CHECK (\"status\" IN ('DRAFT', 'PUBLISHED', 'ARCHIVED'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"Policy\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Holiday.Holiday_organizationId_name_date_key",
+    "label": "Add unique constraint on \"Holiday\" (organizationId, name, date)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Holiday_organizationId_name_date_key",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Holiday_organizationId_name_date_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Holiday_organizationId_name_date_key",
+          "public",
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Holiday_organizationId_name_date_key\"",
+        "sql": "ALTER TABLE \"public\".\"Holiday\" ADD CONSTRAINT \"Holiday_organizationId_name_date_key\" UNIQUE (\"organizationId\", \"name\", \"date\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Holiday_organizationId_name_date_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Holiday_organizationId_name_date_key",
+          "public",
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.Policy.Policy_organizationId_code_key",
+    "label": "Add unique constraint on \"Policy\" (organizationId, code)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "Policy_organizationId_code_key",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Policy_organizationId_code_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Policy_organizationId_code_key",
+          "public",
+          "\"public\".\"Policy\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"Policy_organizationId_code_key\"",
+        "sql": "ALTER TABLE \"public\".\"Policy\" ADD CONSTRAINT \"Policy_organizationId_code_key\" UNIQUE (\"organizationId\", \"code\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Policy_organizationId_code_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Policy_organizationId_code_key",
+          "public",
+          "\"public\".\"Policy\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_category_idx_a0ddcd26",
+    "label": "Create index \"Holiday_organizationId_category_idx_a0ddcd26\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_category_idx_a0ddcd26",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_category_idx_a0ddcd26\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_category_idx_a0ddcd26\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_category_idx_a0ddcd26\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_category_idx_a0ddcd26\" ON \"public\".\"Holiday\" (\"organizationId\", \"category\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_category_idx_a0ddcd26\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_category_idx_a0ddcd26\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_countryCode_idx_e568249f",
+    "label": "Create index \"Holiday_organizationId_countryCode_idx_e568249f\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_countryCode_idx_e568249f",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_countryCode_idx_e568249f\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_countryCode_idx_e568249f\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_countryCode_idx_e568249f\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_countryCode_idx_e568249f\" ON \"public\".\"Holiday\" (\"organizationId\", \"countryCode\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_countryCode_idx_e568249f\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_countryCode_idx_e568249f\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_date_idx_eac2a339",
+    "label": "Create index \"Holiday_organizationId_date_idx_eac2a339\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_date_idx_eac2a339",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_date_idx_eac2a339\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_date_idx_eac2a339\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_date_idx_eac2a339\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_date_idx_eac2a339\" ON \"public\".\"Holiday\" (\"organizationId\", \"date\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_date_idx_eac2a339\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_date_idx_eac2a339\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_idx_2e17ef41",
+    "label": "Create index \"Holiday_organizationId_idx_2e17ef41\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_idx_2e17ef41",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_idx_2e17ef41\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_idx_2e17ef41\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_idx_2e17ef41\" ON \"public\".\"Holiday\" (\"organizationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_idx_2e17ef41\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_isActive_idx_c89f2a48",
+    "label": "Create index \"Holiday_organizationId_isActive_idx_c89f2a48\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_isActive_idx_c89f2a48",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_isActive_idx_c89f2a48\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_isActive_idx_c89f2a48\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_isActive_idx_c89f2a48\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_isActive_idx_c89f2a48\" ON \"public\".\"Holiday\" (\"organizationId\", \"isActive\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_isActive_idx_c89f2a48\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_isActive_idx_c89f2a48\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_regionCode_idx_25c621f9",
+    "label": "Create index \"Holiday_organizationId_regionCode_idx_25c621f9\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_regionCode_idx_25c621f9",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_regionCode_idx_25c621f9\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_regionCode_idx_25c621f9\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_regionCode_idx_25c621f9\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_regionCode_idx_25c621f9\" ON \"public\".\"Holiday\" (\"organizationId\", \"regionCode\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_regionCode_idx_25c621f9\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_regionCode_idx_25c621f9\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Holiday.Holiday_organizationId_religion_idx_2e0d4dd3",
+    "label": "Create index \"Holiday_organizationId_religion_idx_2e0d4dd3\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Holiday_organizationId_religion_idx_2e0d4dd3",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Holiday_organizationId_religion_idx_2e0d4dd3\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_religion_idx_2e0d4dd3\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Holiday_organizationId_religion_idx_2e0d4dd3\"",
+        "sql": "CREATE INDEX \"Holiday_organizationId_religion_idx_2e0d4dd3\" ON \"public\".\"Holiday\" (\"organizationId\", \"religion\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Holiday_organizationId_religion_idx_2e0d4dd3\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Holiday_organizationId_religion_idx_2e0d4dd3\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Policy.Policy_organizationId_effectiveFrom_idx_46424589",
+    "label": "Create index \"Policy_organizationId_effectiveFrom_idx_46424589\" on \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Policy_organizationId_effectiveFrom_idx_46424589",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Policy_organizationId_effectiveFrom_idx_46424589\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_effectiveFrom_idx_46424589\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Policy_organizationId_effectiveFrom_idx_46424589\"",
+        "sql": "CREATE INDEX \"Policy_organizationId_effectiveFrom_idx_46424589\" ON \"public\".\"Policy\" (\"organizationId\", \"effectiveFrom\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Policy_organizationId_effectiveFrom_idx_46424589\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_effectiveFrom_idx_46424589\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Policy.Policy_organizationId_idx_2e17ef41",
+    "label": "Create index \"Policy_organizationId_idx_2e17ef41\" on \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Policy_organizationId_idx_2e17ef41",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Policy_organizationId_idx_2e17ef41\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Policy_organizationId_idx_2e17ef41\"",
+        "sql": "CREATE INDEX \"Policy_organizationId_idx_2e17ef41\" ON \"public\".\"Policy\" (\"organizationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Policy_organizationId_idx_2e17ef41\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Policy.Policy_organizationId_publishedAt_idx_d5b94591",
+    "label": "Create index \"Policy_organizationId_publishedAt_idx_d5b94591\" on \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Policy_organizationId_publishedAt_idx_d5b94591",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Policy_organizationId_publishedAt_idx_d5b94591\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_publishedAt_idx_d5b94591\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Policy_organizationId_publishedAt_idx_d5b94591\"",
+        "sql": "CREATE INDEX \"Policy_organizationId_publishedAt_idx_d5b94591\" ON \"public\".\"Policy\" (\"organizationId\", \"publishedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Policy_organizationId_publishedAt_idx_d5b94591\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_publishedAt_idx_d5b94591\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Policy.Policy_organizationId_status_idx_21af5e82",
+    "label": "Create index \"Policy_organizationId_status_idx_21af5e82\" on \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Policy_organizationId_status_idx_21af5e82",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Policy_organizationId_status_idx_21af5e82\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_status_idx_21af5e82\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Policy_organizationId_status_idx_21af5e82\"",
+        "sql": "CREATE INDEX \"Policy_organizationId_status_idx_21af5e82\" ON \"public\".\"Policy\" (\"organizationId\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Policy_organizationId_status_idx_21af5e82\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Policy_organizationId_status_idx_21af5e82\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Holiday.Holiday_organizationId_fkey",
+    "label": "Add foreign key \"Holiday_organizationId_fkey\" on \"Holiday\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Holiday_organizationId_fkey",
+        "table": "Holiday"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Holiday_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Holiday_organizationId_fkey",
+          "public",
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Holiday_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Holiday\"\nADD CONSTRAINT \"Holiday_organizationId_fkey\"\nFOREIGN KEY (\"organizationId\")\nREFERENCES \"public\".\"Organization\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Holiday_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Holiday_organizationId_fkey",
+          "public",
+          "\"public\".\"Holiday\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.Policy.Policy_organizationId_fkey",
+    "label": "Add foreign key \"Policy_organizationId_fkey\" on \"Policy\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "Policy_organizationId_fkey",
+        "table": "Policy"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"Policy_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Policy_organizationId_fkey",
+          "public",
+          "\"public\".\"Policy\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"Policy_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"Policy\"\nADD CONSTRAINT \"Policy_organizationId_fkey\"\nFOREIGN KEY (\"organizationId\")\nREFERENCES \"public\".\"Organization\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"Policy_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Policy_organizationId_fkey",
+          "public",
+          "\"public\".\"Policy\""
+        ]
+      }
+    ]
+  }
+]

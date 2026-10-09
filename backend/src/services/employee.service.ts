@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { db } from "../../prisma/db.js";
+
 import { AppError } from "../middleware/error.middleware.js";
+
 import {
   normalizeEmail,
   normalizePhone,
@@ -156,8 +158,7 @@ const AUTHENTICATION_METHOD_VALUES:
 function requireOrganizationId(
   organizationId: string,
 ): string {
-  const value =
-    organizationId.trim();
+  const value = organizationId.trim();
 
   if (!value) {
     throw new AppError(
@@ -175,8 +176,7 @@ function requireEntityId(
   fieldName: string,
   errorCode: string,
 ): string {
-  const normalized =
-    value.trim();
+  const normalized = value.trim();
 
   if (!normalized) {
     throw new AppError(
@@ -192,14 +192,11 @@ function requireEntityId(
 function normalizeEmployeeId(
   employeeId: string,
 ): string {
-  const value =
-    employeeId.trim();
+  const value = employeeId.trim();
 
   if (
-    value.length <
-      EMPLOYEE_ID_MIN_LENGTH ||
-    value.length >
-      EMPLOYEE_ID_MAX_LENGTH
+    value.length < EMPLOYEE_ID_MIN_LENGTH ||
+    value.length > EMPLOYEE_ID_MAX_LENGTH
   ) {
     throw new AppError(
       400,
@@ -215,16 +212,13 @@ function normalizeName(
   value: string,
   fieldName: string,
 ): string {
-  const normalized =
-    value
-      .trim()
-      .replace(/\s+/g, " ");
+  const normalized = value
+    .trim()
+    .replace(/\s+/g, " ");
 
   if (
-    normalized.length <
-      NAME_MIN_LENGTH ||
-    normalized.length >
-      NAME_MAX_LENGTH
+    normalized.length < NAME_MIN_LENGTH ||
+    normalized.length > NAME_MAX_LENGTH
   ) {
     throw new AppError(
       400,
@@ -239,16 +233,12 @@ function normalizeName(
 function normalizeEmployeeEmail(
   email: string,
 ): string {
-  const normalized =
-    normalizeEmail(email);
+  const normalized = normalizeEmail(email);
 
   if (
     !normalized ||
-    normalized.length >
-      EMAIL_MAX_LENGTH ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      normalized,
-    )
+    normalized.length > EMAIL_MAX_LENGTH ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
   ) {
     throw new AppError(
       400,
@@ -263,16 +253,12 @@ function normalizeEmployeeEmail(
 function normalizeEmployeePhone(
   phone: string,
 ): string {
-  const normalized =
-    normalizePhone(phone);
+  const normalized = normalizePhone(phone);
 
   if (
     !normalized ||
-    normalized.length >
-      PHONE_MAX_LENGTH ||
-    !/^\+?[0-9]{8,15}$/.test(
-      normalized,
-    )
+    normalized.length > PHONE_MAX_LENGTH ||
+    !/^\+?[0-9]{8,15}$/.test(normalized)
   ) {
     throw new AppError(
       400,
@@ -291,9 +277,7 @@ function normalizeEmployeePhone(
 function validateRole(
   role: EmployeeRole,
 ): EmployeeRole {
-  if (
-    !ROLE_VALUES.includes(role)
-  ) {
+  if (!ROLE_VALUES.includes(role)) {
     throw new AppError(
       400,
       "Invalid employee role.",
@@ -307,9 +291,7 @@ function validateRole(
 function validateStatus(
   status: EmployeeStatus,
 ): EmployeeStatus {
-  if (
-    !STATUS_VALUES.includes(status)
-  ) {
+  if (!STATUS_VALUES.includes(status)) {
     throw new AppError(
       400,
       "Invalid employee account status.",
@@ -324,9 +306,7 @@ function validateAuthenticationMethod(
   method: EmployeeAuthenticationMethod,
 ): EmployeeAuthenticationMethod {
   if (
-    !AUTHENTICATION_METHOD_VALUES.includes(
-      method,
-    )
+    !AUTHENTICATION_METHOD_VALUES.includes(method)
   ) {
     throw new AppError(
       400,
@@ -365,9 +345,7 @@ async function findEmployeeById(
 type EmployeeWithRelations =
   NonNullable<
     Awaited<
-      ReturnType<
-        typeof findEmployeeById
-      >
+      ReturnType<typeof findEmployeeById>
     >
   >;
 
@@ -379,77 +357,53 @@ function toPublicEmployee(
   employee: EmployeeWithRelations,
 ): EmployeePublicRecord {
   return {
-    id:
-      employee.id,
+    id: employee.id,
 
-    organizationId:
-      employee.organizationId,
+    organizationId: employee.organizationId,
 
-    employeeId:
-      employee.employeeId,
+    employeeId: employee.employeeId,
 
-    firstName:
-      employee.firstName,
+    firstName: employee.firstName,
 
-    lastName:
-      employee.lastName,
+    lastName: employee.lastName,
 
-    email:
-      employee.email,
+    email: employee.email,
 
-    phone:
-      employee.phone,
+    phone: employee.phone,
 
-    role:
-      employee.role as EmployeeRole,
+    role: employee.role as EmployeeRole,
 
-    status:
-      employee.status as EmployeeStatus,
+    status: employee.status as EmployeeStatus,
 
     authenticationMethod:
       employee.authenticationMethod as EmployeeAuthenticationMethod,
 
-    emailVerified:
-      employee.emailVerified,
+    emailVerified: employee.emailVerified,
 
-    phoneVerified:
-      employee.phoneVerified,
+    phoneVerified: employee.phoneVerified,
 
-    department:
-      employee.department
-        ? {
-            id:
-              employee.department.id,
-            name:
-              employee.department.name,
-            code:
-              employee.department.code,
-          }
-        : null,
+    department: employee.department
+      ? {
+          id: employee.department.id,
+          name: employee.department.name,
+          code: employee.department.code,
+        }
+      : null,
 
-    reportsTo:
-      employee.reportsTo
-        ? {
-            id:
-              employee.reportsTo.id,
-            employeeId:
-              employee.reportsTo.employeeId,
-            firstName:
-              employee.reportsTo.firstName,
-            lastName:
-              employee.reportsTo.lastName,
-            email:
-              employee.reportsTo.email,
-            role:
-              employee.reportsTo.role as EmployeeRole,
-          }
-        : null,
+    reportsTo: employee.reportsTo
+      ? {
+          id: employee.reportsTo.id,
+          employeeId: employee.reportsTo.employeeId,
+          firstName: employee.reportsTo.firstName,
+          lastName: employee.reportsTo.lastName,
+          email: employee.reportsTo.email,
+          role: employee.reportsTo.role as EmployeeRole,
+        }
+      : null,
 
-    createdAt:
-      employee.createdAt,
+    createdAt: employee.createdAt,
 
-    updatedAt:
-      employee.updatedAt,
+    updatedAt: employee.updatedAt,
   };
 }
 
@@ -499,8 +453,7 @@ async function ensureEmailAvailable(
 
   if (
     employee &&
-    employee.id !==
-      excludeEmployeeId
+    employee.id !== excludeEmployeeId
   ) {
     throw new AppError(
       409,
@@ -526,8 +479,7 @@ async function ensurePhoneAvailable(
 
   if (
     employee &&
-    employee.id !==
-      excludeEmployeeId
+    employee.id !== excludeEmployeeId
   ) {
     throw new AppError(
       409,
@@ -555,8 +507,7 @@ async function ensureEmployeeIdAvailable(
 
   if (
     employee &&
-    employee.id !==
-      excludeEmployeeId
+    employee.id !== excludeEmployeeId
   ) {
     throw new AppError(
       409,
@@ -608,10 +559,7 @@ async function validateReportsTo(
     return;
   }
 
-  if (
-    reportsToId ===
-    employeeId
-  ) {
+  if (reportsToId === employeeId) {
     throw new AppError(
       400,
       "An employee cannot report to themselves.",
@@ -635,10 +583,7 @@ async function validateReportsTo(
     );
   }
 
-  if (
-    manager.status !==
-    "ACTIVE"
-  ) {
+  if (manager.status !== "ACTIVE") {
     throw new AppError(
       400,
       "An inactive employee cannot be assigned as a reporting manager.",
@@ -647,12 +592,9 @@ async function validateReportsTo(
   }
 
   if (
-    manager.role !==
-      "MANAGER" &&
-    manager.role !==
-      "HR_ADMIN" &&
-    manager.role !==
-      "SUPER_ADMIN"
+    manager.role !== "MANAGER" &&
+    manager.role !== "HR_ADMIN" &&
+    manager.role !== "SUPER_ADMIN"
   ) {
     throw new AppError(
       400,
@@ -661,22 +603,16 @@ async function validateReportsTo(
     );
   }
 
-  const visited =
-    new Set<string>();
+  const visited = new Set<string>();
 
-  let currentId:
-    string | null =
-    reportsToId;
+  let currentId: string | null = reportsToId;
 
   let depth = 0;
 
   while (currentId) {
     depth += 1;
 
-    if (
-      depth >
-      MAX_REPORTING_HIERARCHY_DEPTH
-    ) {
+    if (depth > MAX_REPORTING_HIERARCHY_DEPTH) {
       throw new AppError(
         400,
         "The reporting hierarchy exceeds the maximum supported depth.",
@@ -684,11 +620,7 @@ async function validateReportsTo(
       );
     }
 
-    if (
-      visited.has(
-        currentId,
-      )
-    ) {
+    if (visited.has(currentId)) {
       throw new AppError(
         400,
         "The reporting hierarchy contains a circular relationship.",
@@ -698,10 +630,7 @@ async function validateReportsTo(
 
     visited.add(currentId);
 
-    if (
-      currentId ===
-      employeeId
-    ) {
+    if (currentId === employeeId) {
       throw new AppError(
         400,
         "This reporting assignment would create a circular reporting hierarchy.",
@@ -727,8 +656,7 @@ async function validateReportsTo(
       );
     }
 
-    currentId =
-      current.reportsToId;
+    currentId = current.reportsToId;
   }
 }
 
@@ -747,22 +675,15 @@ function validateActiveAuthenticationState(
   authenticationMethod: EmployeeAuthenticationMethod,
   passwordHash: string | null,
 ): void {
-  if (
-    status !== "ACTIVE"
-  ) {
+  if (status !== "ACTIVE") {
     return;
   }
 
   const requiresPassword =
-    authenticationMethod ===
-      "PASSWORD" ||
-    authenticationMethod ===
-      "PASSWORD_AND_OTP";
+    authenticationMethod === "PASSWORD" ||
+    authenticationMethod === "PASSWORD_AND_OTP";
 
-  if (
-    requiresPassword &&
-    !passwordHash
-  ) {
+  if (requiresPassword && !passwordHash) {
     throw new AppError(
       400,
       "A password must be established before a password-based account can become active.",
@@ -772,7 +693,7 @@ function validateActiveAuthenticationState(
 }
 
 /* -------------------------------------------------------------------------- */
-/* SUPER_ADMIN continuity protection                                           */
+/* SUPER_ADMIN continuity protection                                          */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -794,16 +715,12 @@ async function ensureSuperAdminContinuity(
   nextStatus: EmployeeStatus,
 ): Promise<void> {
   const currentlyActiveSuperAdmin =
-    existingEmployee.role ===
-      "SUPER_ADMIN" &&
-    existingEmployee.status ===
-      "ACTIVE";
+    existingEmployee.role === "SUPER_ADMIN" &&
+    existingEmployee.status === "ACTIVE";
 
   const willRemainActiveSuperAdmin =
-    nextRole ===
-      "SUPER_ADMIN" &&
-    nextStatus ===
-      "ACTIVE";
+    nextRole === "SUPER_ADMIN" &&
+    nextStatus === "ACTIVE";
 
   if (
     !currentlyActiveSuperAdmin ||
@@ -824,14 +741,10 @@ async function ensureSuperAdminContinuity(
   const remainingSuperAdmins =
     activeSuperAdmins.filter(
       (employee) =>
-        employee.id !==
-        existingEmployee.id,
+        employee.id !== existingEmployee.id,
     );
 
-  if (
-    remainingSuperAdmins.length ===
-    0
-  ) {
+  if (remainingSuperAdmins.length === 0) {
     throw new AppError(
       409,
       "The organization's last active SUPER_ADMIN cannot be removed or deactivated.",
@@ -851,8 +764,7 @@ async function ensureSuperAdminContinuity(
 async function revokeEmployeeSessions(
   employeeId: string,
 ): Promise<void> {
-  const now =
-    new Date().toISOString();
+  const now = new Date().toISOString();
 
   await db.orm.public.UserSession
     .where({
@@ -877,11 +789,7 @@ function translateEmployeeConstraintError(
       ? error.message
       : "";
 
-  if (
-    /Employee_email_key/i.test(
-      message,
-    )
-  ) {
+  if (/Employee_email_key/i.test(message)) {
     throw new AppError(
       409,
       "An employee with this email address already exists.",
@@ -889,11 +797,7 @@ function translateEmployeeConstraintError(
     );
   }
 
-  if (
-    /Employee_phone_key/i.test(
-      message,
-    )
-  ) {
+  if (/Employee_phone_key/i.test(message)) {
     throw new AppError(
       409,
       "An employee with this phone number already exists.",
@@ -930,9 +834,7 @@ export async function listEmployees(
   organizationId: string,
 ): Promise<EmployeeListResult> {
   const normalizedOrganizationId =
-    requireOrganizationId(
-      organizationId,
-    );
+    requireOrganizationId(organizationId);
 
   const employees =
     await db.orm.public.Employee
@@ -945,13 +847,10 @@ export async function listEmployees(
       .all();
 
   return {
-    employees:
-      employees.map(
-        toPublicEmployee,
-      ),
-
-    total:
-      employees.length,
+    employees: employees.map(
+      toPublicEmployee,
+    ),
+    total: employees.length,
   };
 }
 
@@ -964,9 +863,7 @@ export async function getEmployee(
   employeeId: string,
 ): Promise<EmployeePublicRecord> {
   const normalizedOrganizationId =
-    requireOrganizationId(
-      organizationId,
-    );
+    requireOrganizationId(organizationId);
 
   const normalizedEmployeeId =
     requireEntityId(
@@ -989,9 +886,7 @@ export async function getEmployee(
     );
   }
 
-  return toPublicEmployee(
-    employee,
-  );
+  return toPublicEmployee(employee);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1054,14 +949,12 @@ export async function createEmployee(
 
   const role =
     validateRole(
-      params.role ??
-        "EMPLOYEE",
+      params.role ?? "EMPLOYEE",
     );
 
   const status =
     validateStatus(
-      params.status ??
-        "PENDING",
+      params.status ?? "PENDING",
     );
 
   const authenticationMethod =
@@ -1076,9 +969,7 @@ export async function createEmployee(
    * This prevents an employee from being inserted as ACTIVE while the
    * activation workflow has not established credentials.
    */
-  if (
-    status !== "PENDING"
-  ) {
+  if (status !== "PENDING") {
     throw new AppError(
       400,
       "New employees must start in PENDING status and be activated through the employee activation workflow.",
@@ -1087,20 +978,14 @@ export async function createEmployee(
   }
 
   const departmentId =
-    params.departmentId
-      ?.trim() || null;
+    params.departmentId?.trim() || null;
 
   const reportsToId =
-    params.reportsToId
-      ?.trim() || null;
+    params.reportsToId?.trim() || null;
 
-  await ensureEmailAvailable(
-    email,
-  );
+  await ensureEmailAvailable(email);
 
-  await ensurePhoneAvailable(
-    phone,
-  );
+  await ensurePhoneAvailable(phone);
 
   await ensureEmployeeIdAvailable(
     organizationId,
@@ -1115,8 +1000,7 @@ export async function createEmployee(
   /*
    * Generate the real database ID before validating the reporting hierarchy.
    */
-  const newEmployeeId =
-    randomUUID();
+  const newEmployeeId = randomUUID();
 
   await validateReportsTo(
     organizationId,
@@ -1133,46 +1017,41 @@ export async function createEmployee(
 
   try {
     createdEmployee =
-      await db.orm.public.Employee
-        .create({
-          id:
-            newEmployeeId,
+      await db.orm.public.Employee.create({
+        id: newEmployeeId,
 
-          organizationId,
+        organizationId,
 
-          departmentId,
+        departmentId,
 
-          reportsToId,
+        reportsToId,
 
-          employeeId,
+        employeeId,
 
-          firstName,
+        firstName,
 
-          lastName,
+        lastName,
 
-          email,
+        email,
 
-          phone,
+        phone,
 
-          /*
-           * Credentials are established by the activation/authentication
-           * workflow rather than ordinary HR employee creation.
-           */
-          passwordHash:
-            null,
+        /*
+         * Credentials are established by the activation/authentication
+         * workflow rather than ordinary HR employee creation.
+         */
+        passwordHash: null,
 
-          role,
+        role,
 
-          status,
+        status,
 
-          authenticationMethod,
+        authenticationMethod,
 
-          emailVerified:
-            false,
+        emailVerified: false,
 
-          phoneVerified:
-            false,
-        });
+        phoneVerified: false,
+      });
   } catch (error) {
     translateEmployeeConstraintError(
       error,
@@ -1193,9 +1072,7 @@ export async function createEmployee(
     );
   }
 
-  return toPublicEmployee(
-    created,
-  );
+  return toPublicEmployee(created);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1233,23 +1110,18 @@ export async function updateEmployee(
     );
   }
 
-  const updateData:
-    Record<
-      string,
-      unknown
-    > = {};
+  const updateData: Record<
+    string,
+    unknown
+  > = {};
 
-  let securitySensitiveChange =
-    false;
+  let securitySensitiveChange = false;
 
   /* ------------------------------------------------------------------------ */
   /* Employee ID                                                              */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.employeeId !==
-    undefined
-  ) {
+  if (params.employeeId !== undefined) {
     const employeeId =
       normalizeEmployeeId(
         params.employeeId,
@@ -1269,10 +1141,7 @@ export async function updateEmployee(
   /* First name                                                               */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.firstName !==
-    undefined
-  ) {
+  if (params.firstName !== undefined) {
     updateData.firstName =
       normalizeName(
         params.firstName,
@@ -1284,10 +1153,7 @@ export async function updateEmployee(
   /* Last name                                                                */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.lastName !==
-    undefined
-  ) {
+  if (params.lastName !== undefined) {
     updateData.lastName =
       normalizeName(
         params.lastName,
@@ -1299,10 +1165,7 @@ export async function updateEmployee(
   /* Email                                                                     */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.email !==
-    undefined
-  ) {
+  if (params.email !== undefined) {
     const email =
       normalizeEmployeeEmail(
         params.email,
@@ -1313,27 +1176,21 @@ export async function updateEmployee(
       existing.id,
     );
 
-    updateData.email =
-      email;
+    updateData.email = email;
 
     /*
      * Changing the email invalidates the previous verification state.
      */
-    updateData.emailVerified =
-      false;
+    updateData.emailVerified = false;
 
-    securitySensitiveChange =
-      true;
+    securitySensitiveChange = true;
   }
 
   /* ------------------------------------------------------------------------ */
   /* Phone                                                                     */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.phone !==
-    undefined
-  ) {
+  if (params.phone !== undefined) {
     const phone =
       normalizeEmployeePhone(
         params.phone,
@@ -1344,30 +1201,23 @@ export async function updateEmployee(
       existing.id,
     );
 
-    updateData.phone =
-      phone;
+    updateData.phone = phone;
 
     /*
      * Changing the phone invalidates the previous verification state.
      */
-    updateData.phoneVerified =
-      false;
+    updateData.phoneVerified = false;
 
-    securitySensitiveChange =
-      true;
+    securitySensitiveChange = true;
   }
 
   /* ------------------------------------------------------------------------ */
   /* Department                                                                */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.departmentId !==
-    undefined
-  ) {
+  if (params.departmentId !== undefined) {
     const departmentId =
-      params.departmentId
-        ?.trim() || null;
+      params.departmentId?.trim() || null;
 
     await validateDepartment(
       normalizedOrganizationId,
@@ -1383,11 +1233,8 @@ export async function updateEmployee(
   /* ------------------------------------------------------------------------ */
 
   const nextRole =
-    params.role !==
-    undefined
-      ? validateRole(
-          params.role,
-        )
+    params.role !== undefined
+      ? validateRole(params.role)
       : (existing.role as EmployeeRole);
 
   /* ------------------------------------------------------------------------ */
@@ -1395,11 +1242,8 @@ export async function updateEmployee(
   /* ------------------------------------------------------------------------ */
 
   const nextStatus =
-    params.status !==
-    undefined
-      ? validateStatus(
-          params.status,
-        )
+    params.status !== undefined
+      ? validateStatus(params.status)
       : (existing.status as EmployeeStatus);
 
   /*
@@ -1408,30 +1252,19 @@ export async function updateEmployee(
   await ensureSuperAdminContinuity(
     normalizedOrganizationId,
     {
-      id:
-        existing.id,
-      role:
-        existing.role,
-      status:
-        existing.status,
+      id: existing.id,
+      role: existing.role,
+      status: existing.status,
     },
     nextRole,
     nextStatus,
   );
 
-  if (
-    params.role !==
-    undefined
-  ) {
-    updateData.role =
-      nextRole;
+  if (params.role !== undefined) {
+    updateData.role = nextRole;
 
-    if (
-      nextRole !==
-      existing.role
-    ) {
-      securitySensitiveChange =
-        true;
+    if (nextRole !== existing.role) {
+      securitySensitiveChange = true;
     }
   }
 
@@ -1440,17 +1273,13 @@ export async function updateEmployee(
   /* ------------------------------------------------------------------------ */
 
   const nextAuthenticationMethod =
-    params.authenticationMethod !==
-    undefined
+    params.authenticationMethod !== undefined
       ? validateAuthenticationMethod(
           params.authenticationMethod,
         )
       : (existing.authenticationMethod as EmployeeAuthenticationMethod);
 
-  if (
-    params.authenticationMethod !==
-    undefined
-  ) {
+  if (params.authenticationMethod !== undefined) {
     updateData.authenticationMethod =
       nextAuthenticationMethod;
 
@@ -1458,8 +1287,7 @@ export async function updateEmployee(
       nextAuthenticationMethod !==
       existing.authenticationMethod
     ) {
-      securitySensitiveChange =
-        true;
+      securitySensitiveChange = true;
     }
   }
 
@@ -1477,19 +1305,11 @@ export async function updateEmployee(
   /* Status                                                                    */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.status !==
-    undefined
-  ) {
-    updateData.status =
-      nextStatus;
+  if (params.status !== undefined) {
+    updateData.status = nextStatus;
 
-    if (
-      nextStatus !==
-      existing.status
-    ) {
-      securitySensitiveChange =
-        true;
+    if (nextStatus !== existing.status) {
+      securitySensitiveChange = true;
     }
   }
 
@@ -1497,13 +1317,9 @@ export async function updateEmployee(
   /* Reporting manager                                                        */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    params.reportsToId !==
-    undefined
-  ) {
+  if (params.reportsToId !== undefined) {
     const reportsToId =
-      params.reportsToId
-        ?.trim() || null;
+      params.reportsToId?.trim() || null;
 
     await validateReportsTo(
       normalizedOrganizationId,
@@ -1520,13 +1336,9 @@ export async function updateEmployee(
   /* ------------------------------------------------------------------------ */
 
   if (
-    Object.keys(
-      updateData,
-    ).length === 0
+    Object.keys(updateData).length === 0
   ) {
-    return toPublicEmployee(
-      existing,
-    );
+    return toPublicEmployee(existing);
   }
 
   /* ------------------------------------------------------------------------ */
@@ -1536,15 +1348,12 @@ export async function updateEmployee(
   try {
     await db.orm.public.Employee
       .where({
-        id:
-          existing.id,
+        id: existing.id,
 
         organizationId:
           normalizedOrganizationId,
       })
-      .update(
-        updateData as never,
-      );
+      .update(updateData as never);
   } catch (error) {
     translateEmployeeConstraintError(
       error,
@@ -1555,9 +1364,7 @@ export async function updateEmployee(
   /* Security session invalidation                                             */
   /* ------------------------------------------------------------------------ */
 
-  if (
-    securitySensitiveChange
-  ) {
+  if (securitySensitiveChange) {
     await revokeEmployeeSessions(
       existing.id,
     );
@@ -1581,9 +1388,7 @@ export async function updateEmployee(
     );
   }
 
-  return toPublicEmployee(
-    updated,
-  );
+  return toPublicEmployee(updated);
 }
 
 /* -------------------------------------------------------------------------- */

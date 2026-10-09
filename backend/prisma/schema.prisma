@@ -72,6 +72,19 @@ enum EmployeeDocumentAccess {
   HR_ONLY
 }
 
+enum PolicyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SystemSettingType {
+  STRING
+  INTEGER
+  BOOLEAN
+  JSON
+}
+
 model Organization {
   id        String            @id @default(uuid())
   name      String
@@ -83,6 +96,9 @@ model Organization {
   employees   Employee[]
   leaveTypes  LeaveType[]
   documents   EmployeeDocument[]
+  policies    Policy[]
+  holidays    Holiday[]
+  settings    SystemSetting[]
 
   @@index([code])
 }
@@ -98,13 +114,13 @@ model Department {
   // until an administrator assigns a department lead.
   departmentLeadId String?
 
-  createdAt      TimestamptzString @default(now())
-  updatedAt      temporal.updatedAtString()
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
 
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
 
   // Employees assigned to this department.
-  employees     Employee[]
+  employees Employee[]
 
   // Explicit department lead.
   //
@@ -159,7 +175,7 @@ model Employee {
   )
 
   // Employee reporting hierarchy.
-  reportsTo     Employee?  @relation(
+  reportsTo Employee? @relation(
     "EmployeeReporting",
     fields: [reportsToId],
     references: [id],
@@ -215,7 +231,7 @@ model EmployeeDocument {
 
   documentType EmployeeDocumentType
   status       EmployeeDocumentStatus @default(ACTIVE)
-  accessLevel  EmployeeDocumentAccess @default(EMPLOYEE_AND_HR)
+  accessLevel  EmployeeDocumentAccess  @default(EMPLOYEE_AND_HR)
 
   name        String
   description String?
@@ -232,7 +248,7 @@ model EmployeeDocument {
   sizeBytes Int
   sha256    String
 
-  createdAt TimestamptzString      @default(now())
+  createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 
   organization Organization @relation(
@@ -267,13 +283,13 @@ model EmployeeDocument {
 }
 
 model LeaveType {
-  id               String           @id @default(uuid())
+  id               String            @id @default(uuid())
   organizationId   String
   name             String
   code             String
   daysPerYear      Int
-  requiresDocument Boolean          @default(false)
-  isActive         Boolean          @default(true)
+  requiresDocument Boolean           @default(false)
+  isActive         Boolean           @default(true)
   createdAt        TimestamptzString @default(now())
   updatedAt        temporal.updatedAtString()
 
@@ -285,14 +301,176 @@ model LeaveType {
   @@index([organizationId])
 }
 
+model Policy {
+  id             String       @id @default(uuid())
+  organizationId String
+
+  title       String
+  code        String
+  description String?
+  content     String
+
+  status PolicyStatus @default(DRAFT)
+
+  version Int @default(1)
+
+  effectiveFrom TimestamptzString?
+  effectiveTo   TimestamptzString?
+
+  publishedAt TimestamptzString?
+  archivedAt   TimestamptzString?
+
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id]
+  )
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, effectiveFrom])
+  @@index([organizationId, publishedAt])
+}
+
+model Holiday {
+  id             String            @id @default(uuid())
+  organizationId String
+
+  // Human-readable holiday name.
+  // Examples:
+  // - Christmas Day
+  // - Eid al-Fitr
+  // - Diwali
+  // - Independence Day
+  // - Thanksgiving Day
+  name String
+
+  // Holiday date.
+  //
+  // The backend must normalize and validate this value before
+  // creating or updating a holiday.
+  date TimestamptzString
+
+  // Optional explanation or additional calendar information.
+  description String?
+
+  // Broad classification of the holiday.
+  //
+  // Examples:
+  // PUBLIC
+  // RELIGIOUS
+  // CULTURAL
+  // NATIONAL
+  // REGIONAL
+  // COMPANY
+  // OBSERVANCE
+  //
+  // Kept as String rather than an enum so the system can support
+  // new classifications without requiring a database migration.
+  category String @default("PUBLIC")
+
+  // ISO 3166-1 alpha-2 country code when the holiday is associated
+  // with a specific country.
+  //
+  // Examples:
+  // KE
+  // US
+  // IN
+  // SA
+  //
+  // Nullable because some holidays are global or organization-specific.
+  countryCode String?
+
+  // Optional region/state/province code.
+  //
+  // This allows the system to support local holidays without
+  // restricting the schema to one country's administrative structure.
+  regionCode String?
+
+  // Indicates whether this is a religious holiday/observance.
+  isReligious Boolean @default(false)
+
+  // Optional religion identifier.
+  //
+  // Examples:
+  // CHRISTIAN
+  // ISLAM
+  // JUDAISM
+  // HINDU
+  // SIKH
+  // BUDDHIST
+  // OTHER
+  //
+  // Nullable because public/national/company holidays are not
+  // necessarily associated with a religion.
+  religion String?
+
+  // Indicates whether the holiday repeats annually.
+  isRecurring Boolean @default(false)
+
+  // Allows HR administrators to deactivate a holiday without
+  // destroying historical calendar information.
+  isActive Boolean @default(true)
+
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id]
+  )
+
+  // Prevents the exact same holiday from being duplicated for
+  // the same tenant and date while allowing multiple observances
+  // to exist on the same date.
+  @@unique([organizationId, name, date])
+
+  // Production query indexes.
+  @@index([organizationId])
+  @@index([organizationId, date])
+  @@index([organizationId, isActive])
+  @@index([organizationId, category])
+  @@index([organizationId, countryCode])
+  @@index([organizationId, regionCode])
+  @@index([organizationId, religion])
+}
+
+model SystemSetting {
+  id             String            @id @default(uuid())
+  organizationId String
+  key            String
+  value          String
+  type           SystemSettingType @default(STRING)
+  description    String?
+
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  // Each organization can have one value for each setting key.
+  @@unique([organizationId, key])
+
+  // Production query indexes.
+  @@index([organizationId])
+  @@index([organizationId, type])
+}
+
 model LeaveBalance {
-  id            String           @id @default(uuid())
+  id            String            @id @default(uuid())
   employeeId    String
   leaveTypeId   String
   year          Int
   allocatedDays Int
-  usedDays      Int              @default(0)
-  pendingDays   Int              @default(0)
+  usedDays      Int               @default(0)
+  pendingDays   Int               @default(0)
   createdAt     TimestamptzString @default(now())
   updatedAt     temporal.updatedAtString()
 

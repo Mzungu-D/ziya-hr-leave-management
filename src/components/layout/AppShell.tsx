@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
@@ -20,6 +21,9 @@ interface AppShellProps {
   children: ReactNode;
 }
 
+const DESKTOP_BREAKPOINT = "(min-width: 1024px)";
+const SIDEBAR_WIDTH = 248;
+
 function getHomeRoute(role: UserRole): string {
   switch (role) {
     case "EMPLOYEE":
@@ -37,7 +41,65 @@ function getHomeRoute(role: UserRole): string {
   }
 }
 
-export function AppShell({ children }: AppShellProps) {
+function getUserDisplayName(
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>,
+): string {
+  const fullName = [
+    user.firstName?.trim(),
+    user.lastName?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return fullName || user.email || "User";
+}
+
+function getUserInitials(
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>,
+): string {
+  const firstInitial =
+    user.firstName?.trim().charAt(0) ?? "";
+
+  const lastInitial =
+    user.lastName?.trim().charAt(0) ?? "";
+
+  const initials =
+    `${firstInitial}${lastInitial}`.trim();
+
+  if (initials) {
+    return initials.toUpperCase();
+  }
+
+  return (
+    user.email
+      ?.trim()
+      .charAt(0)
+      .toUpperCase() || "U"
+  );
+}
+
+function getUserRoleLabel(role: UserRole): string {
+  switch (role) {
+    case "SUPER_ADMIN":
+      return "Super Admin";
+
+    case "HR_ADMIN":
+      return "HR Admin";
+
+    case "MANAGER":
+      return "Manager";
+
+    case "EMPLOYEE":
+      return "Employee";
+
+    default:
+      return "User";
+  }
+}
+
+export function AppShell({
+  children,
+}: AppShellProps) {
   const location = useLocation();
 
   const {
@@ -46,27 +108,37 @@ export function AppShell({ children }: AppShellProps) {
     isLoading: authLoading,
   } = useAuth();
 
-  const [mobileNavigationOpen, setMobileNavigationOpen] =
-    useState(false);
+  const [
+    mobileNavigationOpen,
+    setMobileNavigationOpen,
+  ] = useState(false);
 
-  /*
-   * ProtectedRoute is responsible for preventing unauthenticated
-   * users from reaching AppShell.
-   *
-   * While authentication state is still being restored, keep the
-   * shell from making assumptions about the user's role.
-   */
   const userRole = user?.role ?? null;
 
   /*
-   * Navigation is derived exclusively from the authenticated user's
-   * role. The frontend uses this for presentation only; backend
-   * authorization remains the security authority.
+   * Workspace navigation is always derived from the
+   * authenticated user's role.
+   *
+   * This controls presentation only.
+   * Backend authorization remains the security authority.
    */
   const workspaceNavigation = useMemo(
     () =>
       userRole
         ? getNavigationForRole(userRole)
+        : [],
+    [userRole],
+  );
+
+  /*
+   * Support navigation is also role-aware.
+   */
+  const visibleSupportNavigation = useMemo(
+    () =>
+      userRole
+        ? supportNavigation.filter((item) =>
+            item.roles.includes(userRole),
+          )
         : [],
     [userRole],
   );
@@ -79,63 +151,93 @@ export function AppShell({ children }: AppShellProps) {
     [userRole],
   );
 
+  const userDisplayName = useMemo(
+    () =>
+      user
+        ? getUserDisplayName(user)
+        : "User",
+    [user],
+  );
+
+  const userInitials = useMemo(
+    () =>
+      user
+        ? getUserInitials(user)
+        : "U",
+    [user],
+  );
+
+  const userRoleLabel = useMemo(
+    () =>
+      userRole
+        ? getUserRoleLabel(userRole)
+        : "User",
+    [userRole],
+  );
+
   /*
-   * Close the mobile drawer whenever the route changes.
+   * Close the mobile drawer whenever navigation occurs.
    */
   useEffect(() => {
     setMobileNavigationOpen(false);
   }, [location.pathname]);
 
   /*
-   * Prevent background scrolling while the mobile navigation drawer
-   * is open.
-   *
-   * The previous inline overflow value is restored on cleanup so
-   * AppShell never permanently changes the application's body state.
+   * Prevent the page behind the mobile drawer from
+   * scrolling while the drawer is open.
    */
   useEffect(() => {
     if (!mobileNavigationOpen) {
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
+    const previousOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow =
+        previousOverflow;
     };
   }, [mobileNavigationOpen]);
 
   /*
-   * Close the drawer with Escape.
+   * Escape closes the mobile navigation drawer.
    */
   useEffect(() => {
     if (!mobileNavigationOpen) {
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (
+      event: KeyboardEvent,
+    ) => {
       if (event.key === "Escape") {
         setMobileNavigationOpen(false);
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [mobileNavigationOpen]);
 
   /*
-   * If the user rotates a device or resizes the browser from mobile
-   * to desktop while the drawer is open, close the drawer and restore
-   * normal page scrolling.
+   * If the viewport changes from mobile/tablet to
+   * desktop, automatically close the mobile drawer.
    */
   useEffect(() => {
     const mediaQuery = window.matchMedia(
-      "(min-width: 1024px)",
+      DESKTOP_BREAKPOINT,
     );
 
     const handleViewportChange = (
@@ -162,9 +264,9 @@ export function AppShell({ children }: AppShellProps) {
   /*
    * Sign out through AuthContext.
    *
-   * AuthContext owns session invalidation and local auth state.
-   * ProtectedRoute will handle redirecting to /login once the
-   * authenticated state becomes false.
+   * AuthContext owns authentication/session state.
+   * We deliberately do not duplicate authentication
+   * state inside AppShell.
    */
   const handleSignOut = async () => {
     setMobileNavigationOpen(false);
@@ -173,30 +275,38 @@ export function AppShell({ children }: AppShellProps) {
       await logout();
     } catch {
       /*
-       * Logout errors are intentionally not surfaced here.
-       * AuthContext remains responsible for clearing the local
-       * session state even when the backend request fails.
+       * AuthContext is responsible for clearing the
+       * local authentication state even if the backend
+       * logout request fails.
        */
     }
   };
 
   /*
-   * During session restoration, ProtectedRoute normally prevents
-   * this component from rendering. This defensive guard prevents
-   * role-sensitive navigation from being rendered without a user.
+   * Defensive authentication loading state.
+   *
+   * ProtectedRoute normally prevents unauthenticated
+   * users from reaching AppShell. This additional guard
+   * prevents role-sensitive navigation from rendering
+   * while authentication state is being restored.
    */
-  if (authLoading || !user || !userRole) {
+  if (
+    authLoading ||
+    !user ||
+    !userRole
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div
           className="flex flex-col items-center gap-4"
           role="status"
           aria-live="polite"
+          aria-label="Loading workspace"
         >
           <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-md">
             <img
               src={ziyaLogo}
-              alt="Ziya logo"
+              alt="Ziya HR"
               className="h-full w-full object-contain"
             />
           </div>
@@ -206,6 +316,7 @@ export function AppShell({ children }: AppShellProps) {
               className="h-2 w-2 animate-pulse rounded-full bg-[#d8a415]"
               aria-hidden="true"
             />
+
             Loading your workspace...
           </div>
         </div>
@@ -225,7 +336,12 @@ export function AppShell({ children }: AppShellProps) {
           MAIN APPLICATION AREA
          ============================================================ */}
 
-      <div className="min-h-screen lg:pl-[248px]">
+      <div
+        className="min-h-screen"
+        style={{
+          paddingLeft: `${SIDEBAR_WIDTH}px`,
+        }}
+      >
         <Topbar
           onMenuClick={() =>
             setMobileNavigationOpen(true)
@@ -254,22 +370,24 @@ export function AppShell({ children }: AppShellProps) {
       />
 
       {/* ============================================================
-          MOBILE DRAWER
+          MOBILE NAVIGATION DRAWER
          ============================================================ */}
 
       {mobileNavigationOpen && (
         <>
           {/* Backdrop */}
+
           <button
             type="button"
             aria-label="Close navigation"
-            className="fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-[2px] lg:hidden"
+            className="fixed inset-0 z-40 cursor-default bg-slate-950/50 backdrop-blur-[2px] lg:hidden"
             onClick={() =>
               setMobileNavigationOpen(false)
             }
           />
 
           {/* Drawer */}
+
           <aside
             className="fixed inset-y-0 left-0 z-50 flex w-[290px] max-w-[88vw] flex-col bg-[#071a35] text-white shadow-2xl lg:hidden"
             aria-label="Mobile navigation menu"
@@ -285,11 +403,12 @@ export function AppShell({ children }: AppShellProps) {
                   setMobileNavigationOpen(false)
                 }
                 className="flex min-w-0 items-center gap-3 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a415]"
+                aria-label="Go to workspace dashboard"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg">
                   <img
                     src={ziyaLogo}
-                    alt="Ziya logo"
+                    alt="Ziya HR"
                     className="h-full w-full object-contain"
                   />
                 </div>
@@ -332,7 +451,9 @@ export function AppShell({ children }: AppShellProps) {
                 </p>
               </div>
 
-              <nav aria-label="Mobile workspace navigation">
+              <nav
+                aria-label="Mobile workspace navigation"
+              >
                 <div className="space-y-1">
                   {workspaceNavigation.map(
                     (item) => {
@@ -406,7 +527,7 @@ export function AppShell({ children }: AppShellProps) {
 
             <div className="shrink-0 border-t border-white/10 bg-[#071a35] p-3">
               <nav aria-label="Support navigation">
-                {supportNavigation.map(
+                {visibleSupportNavigation.map(
                   (item) => {
                     const Icon = item.icon;
 
@@ -452,23 +573,58 @@ export function AppShell({ children }: AppShellProps) {
                 )}
               </nav>
 
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="mt-1 flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                aria-label="Sign out of Ziya HR"
-              >
-                <LogOut
-                  size={19}
-                  strokeWidth={1.8}
-                  className="shrink-0"
-                  aria-hidden="true"
-                />
+              {/* ====================================================
+                  MOBILE USER
+                 ==================================================== */}
 
-                <span className="truncate">
-                  Sign Out
-                </span>
-              </button>
+              <div className="mt-3 border-t border-white/10 pt-3">
+                <div className="mb-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-3">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#d8a415] text-xs font-bold text-white"
+                    aria-hidden="true"
+                  >
+                    {user.profilePictureUrl ? (
+                      <img
+                        src={
+                          user.profilePictureUrl
+                        }
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      userInitials
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-white">
+                      {userDisplayName}
+                    </p>
+
+                    <p className="truncate text-xs text-slate-400">
+                      {userRoleLabel}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-300 transition hover:bg-red-500/10 hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  aria-label="Sign out of Ziya HR"
+                >
+                  <LogOut
+                    size={19}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                    aria-hidden="true"
+                  />
+
+                  <span className="truncate">
+                    Sign Out
+                  </span>
+                </button>
+              </div>
             </div>
           </aside>
         </>

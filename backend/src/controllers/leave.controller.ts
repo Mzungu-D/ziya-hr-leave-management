@@ -127,11 +127,21 @@ const createRequestSchema = z.object({
  * ============================================================================
  * APPROVAL DECISION VALIDATION
  * ============================================================================
+ *
+ * Comments are optional.
+ *
+ * The backend remains authoritative for:
+ * - authenticated employee
+ * - tenant
+ * - role
+ * - request ownership
+ * - approval stage
+ * - request status
  */
-
 const decisionSchema = z.object({
   comments: z
     .string()
+    .trim()
     .max(2000)
     .nullable()
     .optional(),
@@ -142,7 +152,6 @@ const decisionSchema = z.object({
  * LEAVE REQUEST ID
  * ============================================================================
  */
-
 function getId(
   req: Request,
 ): string {
@@ -167,9 +176,7 @@ function getId(
  * ============================================================================
  * LEAVE TYPES
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/types
  *
  * Returns active leave types for the authenticated employee's organization.
@@ -178,8 +185,7 @@ export async function listLeaveTypesController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const leaveTypes =
     await listLeaveTypes(
@@ -196,9 +202,7 @@ export async function listLeaveTypesController(
  * ============================================================================
  * LEAVE BALANCES
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/balances/me
  *
  * Optional:
@@ -209,8 +213,7 @@ export async function listLeaveBalancesController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const rawYear =
     typeof req.query.year === "string"
@@ -241,17 +244,17 @@ export async function listLeaveBalancesController(
  * ============================================================================
  * CREATE LEAVE REQUEST
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests
+ *
+ * Tenant and employee identity are derived exclusively from the authenticated
+ * session.
  */
 export async function createLeaveRequestController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const body =
     createRequestSchema.parse(
@@ -279,17 +282,14 @@ export async function createLeaveRequestController(
  * ============================================================================
  * EMPLOYEE REQUESTS
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/requests/me
  */
 export async function listMyLeaveRequestsController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const requests =
     await listMyLeaveRequests(
@@ -307,17 +307,14 @@ export async function listMyLeaveRequestsController(
  * ============================================================================
  * SINGLE LEAVE REQUEST
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/requests/:leaveRequestId
  */
 export async function getLeaveRequestController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const leaveRequest =
     await getLeaveRequest(
@@ -336,17 +333,14 @@ export async function getLeaveRequestController(
  * ============================================================================
  * CANCEL LEAVE REQUEST
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests/:leaveRequestId/cancel
  */
 export async function cancelLeaveRequestController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const leaveRequest =
     await cancelLeaveRequest(
@@ -365,17 +359,17 @@ export async function cancelLeaveRequestController(
  * ============================================================================
  * MANAGER / DEPARTMENT LEAD QUEUE
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/requests/pending/manager
+ *
+ * The service determines which requests belong to the authenticated manager.
+ * The frontend does not provide departmentId, employeeId, or organizationId.
  */
 export async function listManagerPendingRequestsController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const requests =
     await listManagerPendingRequests(
@@ -393,21 +387,21 @@ export async function listManagerPendingRequestsController(
  * ============================================================================
  * MANAGER APPROVAL
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests/:leaveRequestId/manager-approve
+ *
+ * The backend service remains responsible for determining whether the
+ * authenticated manager is actually authorized to approve this request.
  */
 export async function managerApproveController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const body =
     decisionSchema.parse(
-      req.body,
+      req.body ?? {},
     );
 
   const leaveRequest =
@@ -415,7 +409,7 @@ export async function managerApproveController(
       context.organizationId,
       context.employeeId,
       getId(req),
-      body.comments,
+      body.comments ?? null,
     );
 
   res.status(200).json({
@@ -428,21 +422,18 @@ export async function managerApproveController(
  * ============================================================================
  * MANAGER REJECTION
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests/:leaveRequestId/manager-reject
  */
 export async function managerRejectController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const body =
     decisionSchema.parse(
-      req.body,
+      req.body ?? {},
     );
 
   const leaveRequest =
@@ -450,7 +441,7 @@ export async function managerRejectController(
       context.organizationId,
       context.employeeId,
       getId(req),
-      body.comments,
+      body.comments ?? null,
     );
 
   res.status(200).json({
@@ -463,17 +454,18 @@ export async function managerRejectController(
  * ============================================================================
  * HR APPROVAL QUEUE
  * ============================================================================
- */
-
-/**
+ *
  * GET /api/leave/requests/pending/hr
+ *
+ * HR receives the final approval queue.
+ *
+ * Tenant scope is derived from the authenticated HR employee.
  */
 export async function listHrPendingRequestsController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const requests =
     await listHrPendingRequests(
@@ -491,21 +483,20 @@ export async function listHrPendingRequestsController(
  * ============================================================================
  * HR FINAL APPROVAL
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests/:leaveRequestId/hr-approve
+ *
+ * This is the final HR approval stage.
  */
 export async function hrApproveController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const body =
     decisionSchema.parse(
-      req.body,
+      req.body ?? {},
     );
 
   const leaveRequest =
@@ -513,7 +504,7 @@ export async function hrApproveController(
       context.organizationId,
       context.employeeId,
       getId(req),
-      body.comments,
+      body.comments ?? null,
     );
 
   res.status(200).json({
@@ -526,21 +517,18 @@ export async function hrApproveController(
  * ============================================================================
  * HR FINAL REJECTION
  * ============================================================================
- */
-
-/**
+ *
  * POST /api/leave/requests/:leaveRequestId/hr-reject
  */
 export async function hrRejectController(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const context =
-    await getContext(req);
+  const context = await getContext(req);
 
   const body =
     decisionSchema.parse(
-      req.body,
+      req.body ?? {},
     );
 
   const leaveRequest =
@@ -548,7 +536,7 @@ export async function hrRejectController(
       context.organizationId,
       context.employeeId,
       getId(req),
-      body.comments,
+      body.comments ?? null,
     );
 
   res.status(200).json({
