@@ -1,4 +1,10 @@
-﻿import express from "express";
+﻿
+import express, {
+  type ErrorRequestHandler,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -9,15 +15,18 @@ import { env } from "./config/env.js";
 import healthRoutes from "./routes/health.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
+import departmentRoutes from "./routes/department.routes.js";
 import leaveRoutes from "./routes/leave.routes.js";
+import leaveTypeRoutes from "./routes/leave-type.routes.js";
 import adminDashboardRoutes from "./routes/adminDashboard.routes.js";
 import reportsRoutes from "./routes/reports.routes.js";
 import policyRoutes from "./routes/policy.routes.js";
 import holidayRoutes from "./routes/holiday.routes.js";
 import systemSettingsRoutes from "./routes/systemSettings.routes.js";
+import auditLogRoutes from "./routes/audit-log.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
-
 import {
   errorHandler,
   notFoundHandler,
@@ -26,19 +35,23 @@ import {
 const app = express();
 
 /**
- * ==========================================================================
- * APPLICATION HARDENING
- * ==========================================================================
+ * ============================================================================
+ * APPLICATION CONFIGURATION
+ * ============================================================================
  */
 
 app.disable("x-powered-by");
 
+/**
+ * Railway reverse-proxy configuration.
+ * Review this if the production network topology changes.
+ */
 app.set("trust proxy", 1);
 
 /**
- * ==========================================================================
+ * ============================================================================
  * SECURITY HEADERS
- * ==========================================================================
+ * ============================================================================
  */
 
 app.use(
@@ -50,12 +63,12 @@ app.use(
 );
 
 /**
- * ==========================================================================
+ * ============================================================================
  * CORS
- * ==========================================================================
+ * ============================================================================
  *
- * Authentication uses HTTP-only cookies, therefore credentials must be
- * explicitly enabled and the frontend origin must be explicitly trusted.
+ * APP_URL must contain the exact permitted frontend origin.
+ * Do not use "*" when credentials are enabled.
  */
 
 app.use(
@@ -64,6 +77,7 @@ app.use(
     credentials: true,
     methods: [
       "GET",
+      "HEAD",
       "POST",
       "PUT",
       "PATCH",
@@ -75,13 +89,14 @@ app.use(
       "Authorization",
       "X-CSRF-Token",
     ],
+    optionsSuccessStatus: 204,
   }),
 );
 
 /**
- * ==========================================================================
+ * ============================================================================
  * REQUEST PARSING
- * ==========================================================================
+ * ============================================================================
  */
 
 app.use(
@@ -101,340 +116,270 @@ app.use(
 app.use(cookieParser());
 
 /**
- * ==========================================================================
- * GLOBAL RESPONSE CACHING POLICY
- * ==========================================================================
+ * ============================================================================
+ * REQUEST PARSING ERROR HANDLING
+ * ============================================================================
  *
- * Leave-management data contains employee and HR information.
- *
- * Responses must not be cached by:
- * - browsers
- * - proxies
- * - intermediary infrastructure
- * - shared caches
+ * Register after the parsers and before application routes.
+ * Malformed JSON and oversized payloads receive safe, consistent responses.
  */
 
-app.use((_req, res, next) => {
+const requestParsingErrorHandler: ErrorRequestHandler = (
+  error: unknown,
+  _req,
+  res,
+  next,
+) => {
+  if (
+    error instanceof SyntaxError &&
+    "body" in error
+  ) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: "INVALID_JSON",
+        message: "The request body contains invalid JSON.",
+      },
+    });
+    return;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "type" in error &&
+    error.type === "entity.too.large"
+  ) {
+    res.status(413).json({
+      success: false,
+      error: {
+        code: "PAYLOAD_TOO_LARGE",
+        message: "The request payload exceeds the allowed size.",
+      },
+    });
+    return;
+  }
+
+  next(error);
+};
+
+app.use(requestParsingErrorHandler);
+
+/**
+ * ============================================================================
+ * RESPONSE CACHE POLICY
+ * ============================================================================
+ *
+ * Avoid browser and intermediary caching of authenticated HR information.
+ */
+
+app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader(
     "Cache-Control",
-    "no-store",
+    "no-store, no-cache, must-revalidate, private",
   );
-
-  res.setHeader(
-    "Pragma",
-    "no-cache",
-  );
-
-  res.setHeader(
-    "Expires",
-    "0",
-  );
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
 
   next();
 });
 
 /**
- * ==========================================================================
+ * ============================================================================
  * GLOBAL RATE LIMITING
- * ==========================================================================
+ * ============================================================================
  *
- * Baseline application-level protection.
+ * This is a general API limit. Authentication and OTP endpoints should also
+ * have appropriately stricter limits in their own routes.
  *
- * Sensitive routes may apply additional route-level protection.
+ * A shared store is required if rate limits must be consistent across
+ * multiple application instances.
  */
 
 app.use(
   rateLimit({
-    windowMs:
-      15 * 60 * 1000,
-
+    windowMs: 15 * 60 * 1000,
     limit: 300,
-
     standardHeaders: "draft-8",
-
     legacyHeaders: false,
-
-    handler: (_req, res) => {
+    handler: (_req: Request, res: Response) => {
       res.status(429).json({
         success: false,
-        code: "RATE_LIMITED",
-        message:
-          "Too many requests. Please try again later.",
+        error: {
+          code: "RATE_LIMITED",
+          message: "Too many requests. Please try again later.",
+        },
       });
     },
   }),
 );
 
 /**
- * ==========================================================================
+ * ============================================================================
  * CSRF PROTECTION
- * ==========================================================================
+ * ============================================================================
  *
- * Must run after cookie parsing because the CSRF middleware requires
- * access to request cookies.
+ * Cookie parsing runs before CSRF protection.
+ * The existing middleware must allow safe methods and the intended CSRF
+ * token/bootstrap flow while protecting state-changing cookie-authenticated
+ * requests.
  */
 
 app.use(csrfProtection);
 
 /**
- * ==========================================================================
- * SERVICE HEALTH / ROOT ENDPOINT
- * ==========================================================================
+ * ============================================================================
+ * ROOT ENDPOINT
+ * ============================================================================
  */
 
-app.get("/", (_req, res) => {
+app.get("/", (_req: Request, res: Response) => {
   res.status(200).json({
     success: true,
-    service:
-      "Ziya Leave Management API",
+    service: "Ziya Leave Management API",
     status: "online",
   });
 });
 
 /**
- * ==========================================================================
- * API ROUTES
- * ==========================================================================
+ * ============================================================================
+ * HEALTH
+ * ============================================================================
  */
 
-app.use(
-  "/api/health",
-  healthRoutes,
-);
-
-app.use(
-  "/api/auth",
-  authRoutes,
-);
+app.use("/api/health", healthRoutes);
 
 /**
- * ==========================================================================
+ * ============================================================================
+ * AUTHENTICATION
+ * ============================================================================
+ */
+
+app.use("/api/auth", authRoutes);
+
+/**
+ * ============================================================================
  * EMPLOYEE MANAGEMENT
- * ==========================================================================
+ * ============================================================================
  *
- * Employee management authorization is handled inside employee.routes.ts.
- *
- * Expected authorization:
- * - Authentication
- * - HR_ADMIN
- * - SUPER_ADMIN
- *
- * Organization scope is resolved server-side from the authenticated
- * employee and is never accepted from client input.
+ * The employee router and service must enforce authentication, authorization,
+ * and server-derived organization scope.
  */
 
-app.use(
-  "/api/employees",
-  employeeRoutes,
-);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/departments", departmentRoutes);
 
 /**
- * ==========================================================================
+ * ============================================================================
  * LEAVE MANAGEMENT
- * ==========================================================================
+ * ============================================================================
  *
- * Authentication and authorization are handled inside leave.routes.ts.
- *
- * Organization scope is resolved server-side from the authenticated
- * employee and is never accepted from client input.
+ * Leave eligibility, balances, request validation, and approval transitions
+ * must be enforced in the route/controller/service layers.
  */
 
-app.use(
-  "/api/leave",
-  leaveRoutes,
-);
+app.use("/api/leave-types", leaveTypeRoutes);
+app.use("/api/leave", leaveRoutes);
 
 /**
- * ==========================================================================
- * POLICY MANAGEMENT
- * ==========================================================================
- *
- * Protected inside policy.routes.ts with:
- *
- * - Authentication
- * - HR_ADMIN
- * - SUPER_ADMIN
- *
- * Organization scope is derived server-side.
- *
- * Available endpoints:
- *
- * GET    /api/policies
- * GET    /api/policies/summary
- * GET    /api/policies/:policyId
- * POST   /api/policies
- * PATCH  /api/policies/:policyId
- * DELETE /api/policies/:policyId
- * POST   /api/policies/:policyId/publish
- * POST   /api/policies/:policyId/archive
- * POST   /api/policies/:policyId/restore
+ * ============================================================================
+ * LEAVE POLICIES
+ * ============================================================================
  */
 
-app.use(
-  "/api/policies",
-  policyRoutes,
-);
+app.use("/api/policies", policyRoutes);
 
 /**
- * ==========================================================================
- * HOLIDAY MANAGEMENT
- * ==========================================================================
- *
- * Protected inside holiday.routes.ts with:
- *
- * - Authentication
- * - HR_ADMIN
- * - SUPER_ADMIN
- *
- * Organization scope is derived server-side.
- *
- * Available endpoints:
- *
- * GET    /api/holidays
- * GET    /api/holidays/summary
- * GET    /api/holidays/:holidayId
- * POST   /api/holidays
- * PATCH  /api/holidays/:holidayId
- * DELETE /api/holidays/:holidayId
- * POST   /api/holidays/:holidayId/activate
- * POST   /api/holidays/:holidayId/deactivate
+ * ============================================================================
+ * HOLIDAYS
+ * ============================================================================
  */
 
-app.use(
-  "/api/holidays",
-  holidayRoutes,
-);
+app.use("/api/holidays", holidayRoutes);
 
 /**
- * ==========================================================================
- * REPORTS & ANALYTICS
- * ==========================================================================
+ * ============================================================================
+ * ADMIN REPORTS
+ * ============================================================================
  *
- * Protected inside reports.routes.ts with:
+ * Existing prefix: /api/admin/reports
  *
- * - Authentication
- * - HR_ADMIN
- * - SUPER_ADMIN
- *
- * CRITICAL TENANT SECURITY:
- *
- * organizationId is NEVER accepted from:
- *
- * - query parameters
- * - route parameters
- * - request body
- * - custom headers
- * - frontend state
- *
- * The reports service resolves the organization exclusively from the
- * authenticated employee.
- *
- * Available endpoints:
- *
- * GET /api/admin/reports
- *
- * Optional:
- * /api/admin/reports?year=2026
- *
- * Custom date range:
- * /api/admin/reports?year=2026&from=2026-01-01&to=2026-12-31
- *
- * GET /api/admin/reports/range
- *
- * Required:
- * /api/admin/reports/range?from=2026-01-01&to=2026-06-30
- *
- * GET /api/admin/reports/annual/:year
- *
- * Example:
- * /api/admin/reports/annual/2026
+ * Reports must be scoped to the organization associated with the authenticated
+ * employee, not an organization ID supplied by the client.
  */
 
-app.use(
-  "/api/admin/reports",
-  reportsRoutes,
-);
+app.use("/api/admin/reports", reportsRoutes);
 
 /**
- * ==========================================================================
+ * ============================================================================
  * SYSTEM SETTINGS
- * ==========================================================================
+ * ============================================================================
  *
- * Protected inside systemSettings.routes.ts with:
+ * Existing prefix: /api/admin/settings
  *
- * - Authentication
- * - HR_ADMIN
- * - SUPER_ADMIN
- *
- * CRITICAL TENANT SECURITY:
- *
- * organizationId is NEVER accepted from:
- *
- * - query parameters
- * - route parameters
- * - request body
- * - custom headers
- * - frontend state
- *
- * The System Settings service resolves the organization exclusively from
- * the authenticated employee.
- *
- * Available endpoints:
- *
- * GET    /api/admin/settings
- * GET    /api/admin/settings/definitions
- * GET    /api/admin/settings/:key
- * PUT    /api/admin/settings
- * PUT    /api/admin/settings/:key
- * DELETE /api/admin/settings/:key
- * DELETE /api/admin/settings
+ * Organization-specific settings must remain tenant-scoped.
  */
 
-app.use(
-  "/api/admin/settings",
-  systemSettingsRoutes,
-);
+app.use("/api/admin/settings", systemSettingsRoutes);
 
 /**
- * ==========================================================================
+ * ============================================================================
  * ADMIN DASHBOARD
- * ==========================================================================
+ * ============================================================================
  *
- * Dashboard access and role authorization are handled inside
- * adminDashboard.routes.ts.
+ * Existing prefix: /api/admin
  *
- * Available endpoint:
- *
- * GET /api/admin/dashboard
+ * The dashboard router is responsible for endpoint-level authorization.
  */
 
-app.use(
-  "/api/admin",
-  adminDashboardRoutes,
-);
+app.use("/api/admin", adminDashboardRoutes);
 
 /**
- * ==========================================================================
- * 404 HANDLING
- * ==========================================================================
+ * ============================================================================
+ * AUDIT LOGS
+ * ============================================================================
  *
- * Any route that has not been registered above reaches this middleware.
+ * Endpoint: GET /api/audit-logs
+ *
+ * The audit-log router must require authentication and restrict listing to
+ * HR_ADMIN and SUPER_ADMIN. The service must derive the organization from
+ * the authenticated employee record and must not trust a client-supplied
+ * organization ID.
  */
 
-app.use(
-  notFoundHandler,
-);
+app.use("/api/audit-logs", auditLogRoutes);
 
 /**
- * ==========================================================================
+ * ============================================================================
+ * NOTIFICATIONS
+ * ============================================================================
+ *
+ * Notifications must be authenticated and scoped to the organization and
+ * recipient resolved by the server. The route must never trust a client-
+ * supplied organization ID or recipient ID.
+ */
+
+app.use("/api/notifications", notificationRoutes);
+
+/**
+ * ============================================================================
+ * NOT FOUND
+ * ============================================================================
+ *
+ * This must follow all registered application routes.
+ */
+
+app.use(notFoundHandler);
+
+/**
+ * ============================================================================
  * CENTRALIZED ERROR HANDLING
- * ==========================================================================
+ * ============================================================================
  *
- * This must remain the final middleware in the application pipeline.
+ * This must be the final middleware.
  */
 
-app.use(
-  errorHandler,
-);
+app.use(errorHandler);
 
 export default app;
+

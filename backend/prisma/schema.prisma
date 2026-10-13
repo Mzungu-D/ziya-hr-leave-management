@@ -27,6 +27,15 @@ enum ApprovalAction {
   REJECTED
 }
 
+enum NotificationType {
+  LEAVE_REQUEST_SUBMITTED
+  LEAVE_REQUEST_APPROVED
+  LEAVE_REQUEST_REJECTED
+  LEAVE_REQUEST_CANCELLED
+  LEAVE_REQUEST_REVIEW_REQUIRED
+  SYSTEM
+}
+
 enum AuthenticationMethod {
   PASSWORD
   OTP
@@ -92,13 +101,15 @@ model Organization {
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 
-  departments Department[]
-  employees   Employee[]
-  leaveTypes  LeaveType[]
-  documents   EmployeeDocument[]
-  policies    Policy[]
-  holidays    Holiday[]
-  settings    SystemSetting[]
+  departments  Department[]
+  employees    Employee[]
+  leaveTypes   LeaveType[]
+  documents    EmployeeDocument[]
+  policies     Policy[]
+  holidays     Holiday[]
+  settings     SystemSetting[]
+  auditLogs    AuditLog[]
+  notifications Notification[]
 
   @@index([code])
 }
@@ -117,7 +128,10 @@ model Department {
   createdAt TimestamptzString @default(now())
   updatedAt temporal.updatedAtString()
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id]
+  )
 
   // Employees assigned to this department.
   employees Employee[]
@@ -167,7 +181,10 @@ model Employee {
   // Unique because one employee can have only one current profile photo.
   profilePictureDocumentId String? @unique
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id]
+  )
 
   department Department? @relation(
     fields: [departmentId],
@@ -211,6 +228,10 @@ model Employee {
   invitations   ActivationInvitation[]
   otpRecords    OtpVerification[]
   sessions      UserSession[]
+  auditLogs     AuditLog[] @relation("AuditLogActor")
+
+  // Notifications addressed to this employee.
+  notifications Notification[] @relation("NotificationRecipient")
 
   // Employee IDs must be unique within an organization.
   @@unique([organizationId, employeeId])
@@ -231,7 +252,7 @@ model EmployeeDocument {
 
   documentType EmployeeDocumentType
   status       EmployeeDocumentStatus @default(ACTIVE)
-  accessLevel  EmployeeDocumentAccess  @default(EMPLOYEE_AND_HR)
+  accessLevel  EmployeeDocumentAccess @default(EMPLOYEE_AND_HR)
 
   name        String
   description String?
@@ -244,7 +265,7 @@ model EmployeeDocument {
   // It must never be used as the storage filename.
   originalName String
 
-  mimeType String
+  mimeType  String
   sizeBytes Int
   sha256    String
 
@@ -570,4 +591,66 @@ model UserSession {
   employee Employee @relation(fields: [employeeId], references: [id])
 
   @@index([employeeId])
+}
+
+model AuditLog {
+  id             String            @id @default(uuid())
+  organizationId String
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String?
+  summary        String
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      TimestamptzString @default(now())
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  actor Employee? @relation(
+    "AuditLogActor",
+    fields: [actorId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action, createdAt])
+  @@index([organizationId, entityType, createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Notification {
+  id             String           @id @default(uuid())
+  organizationId String
+  recipientId    String
+  type           NotificationType
+  title          String
+  message        String
+  href           String?
+  readAt         TimestamptzString?
+  createdAt      TimestamptzString @default(now())
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  recipient Employee @relation(
+    "NotificationRecipient",
+    fields: [recipientId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  // Efficient tenant-scoped notification feeds and unread counts.
+  @@index([organizationId, recipientId, createdAt])
+  @@index([organizationId, recipientId, readAt])
 }

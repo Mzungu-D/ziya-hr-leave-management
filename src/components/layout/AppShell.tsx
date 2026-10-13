@@ -1,7 +1,7 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
 
 import ziyaLogo from "../../assets/zayi.jpg";
@@ -11,6 +11,7 @@ import {
   supportNavigation,
 } from "../../config/navigation";
 import { useAuth } from "../../contexts/AuthContext";
+import { getUnreadNotificationCount } from "../../services/notification.service";
 import type { UserRole } from "../../types/auth";
 
 import { MobileNavigation } from "./MobileNavigation";
@@ -101,6 +102,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const {
     user,
@@ -108,6 +110,7 @@ export function AppShell({
     isLoading: authLoading,
   } = useAuth();
 
+  const [notificationCount, setNotificationCount] = useState(0);
   const [
     mobileNavigationOpen,
     setMobileNavigationOpen,
@@ -181,6 +184,29 @@ export function AppShell({
   useEffect(() => {
     setMobileNavigationOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!user || !userRole) {
+      setNotificationCount(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    let active = true;
+
+    getUnreadNotificationCount(controller.signal)
+      .then((count) => {
+        if (active) setNotificationCount(count);
+      })
+      .catch(() => {
+        if (active) setNotificationCount(0);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [user?.email, userRole, location.pathname]);
 
   /*
    * Prevent the page behind the mobile drawer from
@@ -260,6 +286,17 @@ export function AppShell({
       );
     };
   }, []);
+
+  const handleNotificationsClick = () => {
+    const notificationRoute =
+      userRole === "EMPLOYEE"
+        ? "/employee/notifications"
+        : userRole === "MANAGER"
+          ? "/manager/notifications"
+          : "/admin/notifications";
+
+    navigate(notificationRoute);
+  };
 
   /*
    * Sign out through AuthContext.
@@ -343,6 +380,8 @@ export function AppShell({
         }}
       >
         <Topbar
+          notificationCount={notificationCount}
+          onNotificationsClick={handleNotificationsClick}
           onMenuClick={() =>
             setMobileNavigationOpen(true)
           }
@@ -419,7 +458,7 @@ export function AppShell({
                   </div>
 
                   <div className="mt-0.5 whitespace-nowrap text-[8px] font-medium tracking-[0.14em] text-slate-300">
-                    PEOPLE • TIME • TOGETHER
+                    PEOPLE â€¢ TIME â€¢ TOGETHER
                   </div>
                 </div>
               </Link>

@@ -1,3 +1,4 @@
+﻿
 import {
   BrowserRouter,
   Navigate,
@@ -6,29 +7,46 @@ import {
 } from "react-router-dom";
 
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+
 import { AppShell } from "./components/layout/AppShell";
+
 import { AuthProvider } from "./contexts/AuthContext";
 
 import { AdminDashboard } from "./pages/admin/AdminDashboard";
+
 import { Approvals } from "./pages/admin/Approvals";
+
+import AuditLogs from "./pages/admin/AuditLogs";
+
 import { Departments } from "./pages/admin/Departments";
+
 import { Employees } from "./pages/admin/Employees";
+
 import { HolidaysCalendar } from "./pages/admin/HolidaysCalendar";
+
 import {
   LeaveManagement as AdminLeaveManagement,
 } from "./pages/admin/LeaveManagement";
+
 import { LeaveTypes } from "./pages/admin/LeaveTypes";
+
 import { Policies } from "./pages/admin/Policies";
+
 import { Reports } from "./pages/admin/Reports";
+
 import SystemSettings from "./pages/admin/SystemSettings";
 
 import { Login } from "./pages/auth/Login";
 
 import { ApplyLeave } from "./pages/employee/ApplyLeave";
+
 import { EmployeeDashboard } from "./pages/employee/EmployeeDashboard";
+
 import { LeaveManagement } from "./pages/employee/LeaveManagement";
 
 import { HelpSupport } from "./pages/HelpSupport";
+
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -108,7 +126,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — EMPLOYEES
+              HR / ADMIN â€” EMPLOYEES
           ====================================================== */}
 
           <Route
@@ -128,7 +146,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE MANAGEMENT
+              HR / ADMIN â€” LEAVE MANAGEMENT
           ====================================================== */}
 
           <Route
@@ -148,7 +166,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE TYPES
+              HR / ADMIN â€” LEAVE TYPES
           ====================================================== */}
 
           <Route
@@ -168,7 +186,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE APPROVALS
+              HR / ADMIN â€” LEAVE APPROVALS
           ====================================================== */}
 
           <Route
@@ -188,7 +206,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — POLICIES
+              HR / ADMIN â€” POLICIES
           ====================================================== */}
 
           <Route
@@ -208,7 +226,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — DEPARTMENTS
+              HR / ADMIN â€” DEPARTMENTS
           ====================================================== */}
 
           <Route
@@ -228,7 +246,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — HOLIDAYS & CALENDAR
+              HR / ADMIN â€” HOLIDAYS & CALENDAR
           ====================================================== */}
 
           <Route
@@ -248,7 +266,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — REPORTS & ANALYTICS
+              HR / ADMIN â€” REPORTS & ANALYTICS
           ====================================================== */}
 
           <Route
@@ -268,7 +286,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — SYSTEM SETTINGS
+              HR / ADMIN â€” SYSTEM SETTINGS
           ====================================================== */}
 
           <Route
@@ -288,9 +306,61 @@ function App() {
           />
 
           {/* =====================================================
+              HR / ADMIN â€” AUDIT LOGS
+          ====================================================== */}
+
+          <Route
+            path="/admin/audit-logs"
+            element={
+              <ProtectedRoute
+                allowedRoles={[
+                  "HR_ADMIN",
+                  "SUPER_ADMIN",
+                ]}
+              >
+                <AppShell>
+                  <AuditLogs />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =====================================================
               HELP & SUPPORT
           ====================================================== */}
 
+          <Route
+            path="/employee/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+                <AppShell>
+                  <Notifications />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["MANAGER"]}>
+                <AppShell>
+                  <Notifications />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["HR_ADMIN", "SUPER_ADMIN"]}>
+                <AppShell>
+                  <Notifications />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/help"
             element={
@@ -343,3 +413,5 @@ function App() {
 }
 
 export default App;
+
+

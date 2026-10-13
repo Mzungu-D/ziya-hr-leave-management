@@ -26,6 +26,123 @@ export interface CreateLeaveRequestParams {
 
 type DbRecord = Record<string, any>;
 
+type LeaveNotificationType =
+  | "LEAVE_REQUEST_SUBMITTED"
+  | "LEAVE_REQUEST_APPROVED"
+  | "LEAVE_REQUEST_REJECTED"
+  | "LEAVE_REQUEST_CANCELLED"
+  | "LEAVE_REQUEST_REVIEW_REQUIRED";
+
+interface LeaveNotificationInput {
+  organizationId: string;
+  recipientId: string;
+  type: LeaveNotificationType;
+  title: string;
+  message: string;
+  href?: string | null;
+}
+
+/**
+ * Creates a notification within the caller's existing transaction.
+ * The recipient must be active and belong to the same organization.
+ */
+async function createLeaveNotification(
+  tx: any,
+  input: LeaveNotificationInput,
+): Promise<void> {
+  const organizationId = requireId(
+    input.organizationId,
+    "Organization ID",
+    "ORGANIZATION_ID_REQUIRED",
+  );
+
+  const recipientId = requireId(
+    input.recipientId,
+    "Notification recipient ID",
+    "NOTIFICATION_RECIPIENT_REQUIRED",
+  );
+
+  const title = normalizeOptionalText(input.title, 200);
+  const message = normalizeOptionalText(input.message, 2_000);
+  const href = normalizeOptionalText(input.href, 2_000);
+
+  if (!title || !message) {
+    throw new AppError(
+      400,
+      "Notification title and message are required.",
+      "INVALID_NOTIFICATION",
+    );
+  }
+
+  const recipient = await tx.orm.public.Employee
+    .where({
+      id: recipientId,
+      organizationId,
+      status: "ACTIVE",
+    })
+    .first();
+
+  // Do not create notifications for inactive, missing,
+  // or cross-organization recipients.
+  if (!recipient) {
+    return;
+  }
+
+  await tx.orm.public.Notification.create({
+    id: randomUUID(),
+    organizationId,
+    recipientId,
+    type: input.type,
+    title,
+    message,
+    href: href ?? null,
+    readAt: null,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Finds active HR recipients in the current organization.
+ */
+async function getActiveHrRecipients(
+  tx: any,
+  organizationId: string,
+): Promise<string[]> {
+  const employees = await tx.orm.public.Employee
+    .where({
+      organizationId,
+      status: "ACTIVE",
+    })
+    .all();
+
+  return (employees as DbRecord[])
+    .filter((employee) =>
+      ["HR_ADMIN", "SUPER_ADMIN"].includes(employee.role),
+    )
+    .map((employee) => employee.id);
+}
+
+/**
+ * Deduplicates recipients and creates their notifications.
+ */
+async function createLeaveNotifications(
+  tx: any,
+  notifications: LeaveNotificationInput[],
+): Promise<void> {
+  const seen = new Set<string>();
+
+  for (const notification of notifications) {
+    const key = `${notification.organizationId}:${notification.recipientId}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    await createLeaveNotification(tx, notification);
+  }
+}
+
 const ACTIVE_OVERLAP_STATUSES: LeaveRequestStatus[] = [
   "PENDING",
   "MANAGER_APPROVED",
@@ -1928,6 +2045,55 @@ async function writeApproval(
             });
         }
 
+const employeeName = [
+  fresh.employee?.firstName,
+  fresh.employee?.lastName,
+]
+  .filter(Boolean)
+  .join(" ");
+
+const rejected = action === "REJECTED";
+const approvalStage = stage === "MANAGER" ? "manager" : "HR";
+
+await createLeaveNotification(tx, {
+  organizationId: normalizedOrganizationId,
+  recipientId: fresh.employeeId,
+  type: rejected
+    ? "LEAVE_REQUEST_REJECTED"
+    : "LEAVE_REQUEST_APPROVED",
+  title: rejected
+    ? "Leave request rejected"
+    : stage === "MANAGER"
+      ? "Leave request approved by manager"
+      : "Leave request fully approved",
+  message: rejected
+    ? `Your leave request was rejected by ${approvalStage}.${normalizedComments ? ` Reason: ${normalizedComments}` : ""}`
+    : stage === "MANAGER"
+      ? "Your leave request has passed manager approval and is awaiting HR review."
+      : "Your leave request has received final HR approval.",
+  href: null,
+});
+
+if (stage === "MANAGER" && action === "APPROVED") {
+  const hrRecipientIds = await getActiveHrRecipients(
+    tx,
+    normalizedOrganizationId,
+  );
+
+  await createLeaveNotifications(
+    tx,
+    hrRecipientIds
+      .filter((recipientId) => recipientId !== fresh.employeeId)
+      .map((recipientId) => ({
+        organizationId: normalizedOrganizationId,
+        recipientId,
+        type: "LEAVE_REQUEST_REVIEW_REQUIRED" as const,
+        title: "Leave request awaiting HR review",
+        message: `${employeeName}'s leave request has been approved by the manager and requires final HR review.`,
+        href: null,
+      })),
+  );
+}
         return updatedRequest;
       },
     );
@@ -2227,6 +2393,15 @@ export async function cancelLeaveRequest(
           updatedAt:
             now,
         });
+      await createLeaveNotification(tx, {
+        organizationId: normalizedOrganizationId,
+        recipientId: normalizedEmployeeId,
+        type: "LEAVE_REQUEST_CANCELLED",
+        title: "Leave request cancelled",
+        message:
+          "Your leave request has been cancelled successfully.",
+        href: null,
+      });
     },
   );
 
