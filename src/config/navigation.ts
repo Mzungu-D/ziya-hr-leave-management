@@ -22,25 +22,18 @@ export interface NavigationItem {
   roles: UserRole[];
 }
 
+const WORKSPACE_ROOTS = new Set([
+  "/admin",
+  "/employee",
+  "/manager",
+]);
+
 /**
  * HR/Admin workspace navigation.
  *
- * This is intentionally limited to the approved HR/Admin workspace:
- * Dashboard
- * Employees
- * Leave Management
- * Leave Types
- * Approvals
- * Policies
- * Departments
- * Holidays & Calendar
- * Reports & Analytics
- *
- * Settings, audit logs, notifications and user administration are
- * not exposed through this primary workspace navigation.
- *
- * Backend authorization remains the security authority. These role
- * definitions control presentation only.
+ * These paths must match the routes registered in App.tsx.
+ * Navigation visibility is for presentation only. The backend
+ * remains responsible for enforcing authentication and permissions.
  */
 export const adminNavigation: NavigationItem[] = [
   {
@@ -62,7 +55,7 @@ export const adminNavigation: NavigationItem[] = [
   {
     key: "leave-management",
     label: "Leave Management",
-    href: "/admin/leave",
+    href: "/admin/leave-management",
     icon: CalendarDays,
     description: "Manage leave requests, balances and leave activity",
     roles: ["HR_ADMIN", "SUPER_ADMIN"],
@@ -203,9 +196,6 @@ export const managerNavigation: NavigationItem[] = [
 
 /**
  * Shared support navigation.
- *
- * This is rendered separately from the workspace navigation so
- * Help & Support remains visually separated from the main modules.
  */
 export const supportNavigation: NavigationItem[] = [
   {
@@ -218,6 +208,9 @@ export const supportNavigation: NavigationItem[] = [
   },
 ];
 
+/**
+ * Central navigation groups.
+ */
 export const navigationGroups = {
   admin: adminNavigation,
   employee: employeeNavigation,
@@ -226,11 +219,10 @@ export const navigationGroups = {
 } as const;
 
 /**
- * Returns only the primary workspace navigation permitted for
- * the authenticated user's role.
+ * Return workspace navigation for the authenticated user's role.
  *
- * The returned navigation is presentation-level only.
- * API/backend authorization must independently enforce access.
+ * This function controls UI visibility only. It is not an
+ * authorization mechanism.
  */
 export function getNavigationForRole(
   role: UserRole,
@@ -252,50 +244,41 @@ export function getNavigationForRole(
 }
 
 /**
- * Determines whether a navigation item represents the current route.
+ * Normalize a path for consistent comparisons.
  *
- * Root workspace routes require an exact match so `/admin` does
- * not incorrectly remain active on `/admin/employees`.
- *
- * Child routes remain active for nested URLs, for example:
- * `/admin/employees/123`
- * remains active under Employees.
- */
-export function isNavigationItemActive(
-  currentPath: string,
-  item: NavigationItem,
-): boolean {
-  const normalizedCurrentPath = normalizePath(currentPath);
-  const normalizedItemPath = normalizePath(item.href);
-
-  const workspaceRoots = new Set([
-    "/admin",
-    "/employee",
-    "/manager",
-  ]);
-
-  if (workspaceRoots.has(normalizedItemPath)) {
-    return normalizedCurrentPath === normalizedItemPath;
-  }
-
-  return (
-    normalizedCurrentPath === normalizedItemPath ||
-    normalizedCurrentPath.startsWith(`${normalizedItemPath}/`)
-  );
-}
-
-/**
- * Normalizes application paths before route comparison.
- *
- * This prevents trailing-slash differences from breaking active
- * navigation state while preserving the root `/`.
+ * Examples:
+ * /admin/         -> /admin
+ * /admin/leave/   -> /admin/leave
+ * /              -> /
  */
 function normalizePath(path: string): string {
   if (!path || path === "/") {
     return "/";
   }
 
-  const withoutTrailingSlash = path.replace(/\/+$/, "");
+  const withoutTrailingSlashes = path.replace(/\/+$/, "");
 
-  return withoutTrailingSlash || "/";
+  return withoutTrailingSlashes || "/";
+}
+
+/**
+ * Determine whether a navigation item matches the current route.
+ *
+ * Workspace root routes require an exact match, so the Dashboard
+ * item does not remain active on child pages.
+ *
+ * Nested routes remain active under their parent navigation item.
+ */
+export function isNavigationItemActive(
+  currentPath: string,
+  item: NavigationItem,
+): boolean {
+  const current = normalizePath(currentPath);
+  const target = normalizePath(item.href);
+
+  if (WORKSPACE_ROOTS.has(target)) {
+    return current === target;
+  }
+
+  return current === target || current.startsWith(`${target}/`);
 }
