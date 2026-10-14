@@ -1,5 +1,4 @@
-﻿
-import express, {
+﻿import express, {
   type ErrorRequestHandler,
   type NextFunction,
   type Request,
@@ -85,10 +84,13 @@ app.use(
       "OPTIONS",
     ],
     allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-CSRF-Token",
-    ],
+  "Accept",
+  "Authorization",
+  "Cache-Control",
+  "Content-Type",
+  "X-CSRF-Token",
+  "X-Requested-With",
+],
     optionsSuccessStatus: 204,
   }),
 );
