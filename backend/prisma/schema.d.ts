@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'36bdf7d5d238f8e718a902a75f64ac7f0e2b079f60d0362eff3e004e6def1078'>;
+  StorageHashBase<'e8c934381ba4f989d052c74eb066d69df9e3fffeacd20a5117eb2a4681f9e7a0'>;
 export type ExecutionHash =
-  ExecutionHashBase<'6bcdb41c676071d8b43814d0449a78e0be412d9f33a37ce35adb917666f0f183'>;
+  ExecutionHashBase<'eac6cc0dd1b36bd60be07e7627762104520125f7f9fc483c397aab3c1498bfc2'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -412,7 +412,23 @@ export type FieldOutputTypes = {
         | 'LEAVE_REQUEST_REJECTED'
         | 'LEAVE_REQUEST_CANCELLED'
         | 'LEAVE_REQUEST_REVIEW_REQUIRED'
+        | 'ONBOARDING_SUBMITTED'
         | 'SYSTEM';
+    };
+    readonly OnboardingSubmission: {
+      readonly completedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly consentData: CodecTypes['pg/json@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly employeeData: CodecTypes['pg/json@1']['output'] | null;
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly hrData: CodecTypes['pg/json@1']['output'] | null;
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly organizationId: CodecTypes['pg/text@1']['output'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'COMPLETED';
+      readonly submittedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
     readonly Organization: {
       readonly code: CodecTypes['pg/text@1']['output'];
@@ -635,7 +651,23 @@ export type FieldInputTypes = {
         | 'LEAVE_REQUEST_REJECTED'
         | 'LEAVE_REQUEST_CANCELLED'
         | 'LEAVE_REQUEST_REVIEW_REQUIRED'
+        | 'ONBOARDING_SUBMITTED'
         | 'SYSTEM';
+    };
+    readonly OnboardingSubmission: {
+      readonly completedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly consentData: CodecTypes['pg/json@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly employeeData: CodecTypes['pg/json@1']['input'] | null;
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly hrData: CodecTypes['pg/json@1']['input'] | null;
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly organizationId: CodecTypes['pg/text@1']['input'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'COMPLETED';
+      readonly submittedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly Organization: {
       readonly code: CodecTypes['pg/text@1']['input'];
@@ -858,7 +890,23 @@ export type StorageColumnTypes = {
         | 'LEAVE_REQUEST_REJECTED'
         | 'LEAVE_REQUEST_CANCELLED'
         | 'LEAVE_REQUEST_REVIEW_REQUIRED'
+        | 'ONBOARDING_SUBMITTED'
         | 'SYSTEM';
+    };
+    readonly OnboardingSubmission: {
+      readonly completedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly consentData: CodecTypes['pg/json@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly employeeData: CodecTypes['pg/json@1']['output'] | null;
+      readonly employeeId: CodecTypes['pg/text@1']['output'];
+      readonly hrData: CodecTypes['pg/json@1']['output'] | null;
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly organizationId: CodecTypes['pg/text@1']['output'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'COMPLETED';
+      readonly submittedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
     readonly Organization: {
       readonly code: CodecTypes['pg/text@1']['output'];
@@ -1081,7 +1129,23 @@ export type StorageColumnInputTypes = {
         | 'LEAVE_REQUEST_REJECTED'
         | 'LEAVE_REQUEST_CANCELLED'
         | 'LEAVE_REQUEST_REVIEW_REQUIRED'
+        | 'ONBOARDING_SUBMITTED'
         | 'SYSTEM';
+    };
+    readonly OnboardingSubmission: {
+      readonly completedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly consentData: CodecTypes['pg/json@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly employeeData: CodecTypes['pg/json@1']['input'] | null;
+      readonly employeeId: CodecTypes['pg/text@1']['input'];
+      readonly hrData: CodecTypes['pg/json@1']['input'] | null;
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly organizationId: CodecTypes['pg/text@1']['input'];
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'COMPLETED';
+      readonly submittedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly Organization: {
       readonly code: CodecTypes['pg/text@1']['input'];
@@ -1213,10 +1277,12 @@ export namespace Models {
     leaveBalances: public_LeaveBalance[];
     leaveRequests: public_LeaveRequest[];
     notifications: public_Notification[];
+    onboardingSubmission: public_OnboardingSubmission | null;
     organization: public_Organization;
     otpRecords: public_OtpVerification[];
     profilePictureDocument: public_EmployeeDocument | null;
     reportsTo: public_Employee | null;
+    reviewedOnboardingSubmissions: public_OnboardingSubmission[];
     sessions: public_UserSession[];
     uploadedDocuments: public_EmployeeDocument[];
     readonly [RelationKeys]?:
@@ -1230,10 +1296,12 @@ export namespace Models {
       | 'leaveBalances'
       | 'leaveRequests'
       | 'notifications'
+      | 'onboardingSubmission'
       | 'organization'
       | 'otpRecords'
       | 'profilePictureDocument'
       | 'reportsTo'
+      | 'reviewedOnboardingSubmissions'
       | 'sessions'
       | 'uploadedDocuments';
   };
@@ -1369,10 +1437,30 @@ export namespace Models {
       | 'LEAVE_REQUEST_REJECTED'
       | 'LEAVE_REQUEST_CANCELLED'
       | 'LEAVE_REQUEST_REVIEW_REQUIRED'
+      | 'ONBOARDING_SUBMITTED'
       | 'SYSTEM';
     organization: public_Organization;
     recipient: public_Employee;
     readonly [RelationKeys]?: 'organization' | 'recipient';
+  };
+  export type public_OnboardingSubmission = {
+    completedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    consentData: CodecTypes['pg/json@1']['output'] | null;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    employeeData: CodecTypes['pg/json@1']['output'] | null;
+    employeeId: CodecTypes['pg/text@1']['output'];
+    hrData: CodecTypes['pg/json@1']['output'] | null;
+    id: CodecTypes['pg/text@1']['output'];
+    organizationId: CodecTypes['pg/text@1']['output'];
+    reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    reviewedById: CodecTypes['pg/text@1']['output'] | null;
+    status: 'DRAFT' | 'SUBMITTED' | 'UNDER_REVIEW' | 'RETURNED' | 'COMPLETED';
+    submittedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    employee: public_Employee;
+    organization: public_Organization;
+    reviewedBy: public_Employee | null;
+    readonly [RelationKeys]?: 'employee' | 'organization' | 'reviewedBy';
   };
   export type public_Organization = {
     code: CodecTypes['pg/text@1']['output'];
@@ -1387,6 +1475,7 @@ export namespace Models {
     holidays: public_Holiday[];
     leaveTypes: public_LeaveType[];
     notifications: public_Notification[];
+    onboardingSubmissions: public_OnboardingSubmission[];
     policies: public_Policy[];
     settings: public_SystemSetting[];
     readonly [RelationKeys]?:
@@ -1397,6 +1486,7 @@ export namespace Models {
       | 'holidays'
       | 'leaveTypes'
       | 'notifications'
+      | 'onboardingSubmissions'
       | 'policies'
       | 'settings';
   };
@@ -1471,6 +1561,7 @@ export declare const models: {
     LeaveRequest: Models.public_LeaveRequest;
     LeaveType: Models.public_LeaveType;
     Notification: Models.public_Notification;
+    OnboardingSubmission: Models.public_OnboardingSubmission;
     Organization: Models.public_Organization;
     OtpVerification: Models.public_OtpVerification;
     Policy: Models.public_Policy;
@@ -2854,6 +2945,147 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly OnboardingSubmission: {
+              columns: {
+                readonly completedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+                readonly consentData: {
+                  readonly nativeType: 'json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly employeeData: {
+                  readonly nativeType: 'json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                };
+                readonly employeeId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly hrData: {
+                  readonly nativeType: 'json';
+                  readonly codecId: 'pg/json@1';
+                  readonly nullable: true;
+                };
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly organizationId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly reviewedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+                readonly reviewedById: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly status: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'DRAFT'>;
+                  };
+                };
+                readonly submittedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+                readonly updatedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                { readonly columns: readonly ['employeeId'] },
+                { readonly columns: readonly ['organizationId', 'employeeId'] },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'OnboardingSubmission_organizationId_idx_2e17ef41';
+                  readonly prefix: 'OnboardingSubmission_organizationId_idx';
+                  readonly columns: readonly ['organizationId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'OnboardingSubmission_reviewedById_idx_e2835478';
+                  readonly prefix: 'OnboardingSubmission_reviewedById_idx';
+                  readonly columns: readonly ['reviewedById'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'onboard_org_reviewer_idx';
+                  readonly columns: readonly ['organizationId', 'reviewedById'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'onboard_org_status_submitted_idx';
+                  readonly columns: readonly ['organizationId', 'status', 'submittedAt'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'OnboardingSubmission';
+                    readonly columns: readonly ['organizationId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Organization';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'OnboardingSubmission';
+                    readonly columns: readonly ['employeeId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'OnboardingSubmission';
+                    readonly columns: readonly ['reviewedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Employee';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly Organization: {
               columns: {
                 readonly code: {
@@ -3312,7 +3544,18 @@ type ContractBase = Omit<
                 'LEAVE_REQUEST_REJECTED',
                 'LEAVE_REQUEST_CANCELLED',
                 'LEAVE_REQUEST_REVIEW_REQUIRED',
+                'ONBOARDING_SUBMITTED',
                 'SYSTEM',
+              ];
+            };
+            readonly OnboardingStatus: {
+              readonly kind: 'valueSet';
+              readonly values: readonly [
+                'DRAFT',
+                'SUBMITTED',
+                'UNDER_REVIEW',
+                'RETURNED',
+                'COMPLETED',
               ];
             };
             readonly OtpPurpose: {
@@ -3373,6 +3616,10 @@ type ContractBase = Omit<
     readonly Notification: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'Notification';
+    };
+    readonly OnboardingSubmission: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'OnboardingSubmission';
     };
     readonly Organization: {
       readonly namespace: 'public' & NamespaceId;
@@ -3857,6 +4104,18 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['recipientId'];
                 };
               };
+              readonly onboardingSubmission: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'OnboardingSubmission';
+                };
+                readonly cardinality: '1:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['employeeId'];
+                };
+              };
               readonly organization: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -3902,6 +4161,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['reportsToId'];
                   readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly reviewedOnboardingSubmissions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'OnboardingSubmission';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['reviewedById'];
                 };
               };
               readonly sessions: {
@@ -4710,6 +4980,134 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly OnboardingSubmission: {
+            readonly fields: {
+              readonly completedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly consentData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly employeeData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly employeeId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly hrData: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/json@1' };
+              };
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly organizationId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reviewedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly reviewedById: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly submittedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly employee: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['employeeId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly organization: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Organization';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['organizationId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly reviewedBy: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Employee';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['reviewedById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'OnboardingSubmission';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly completedAt: { readonly column: 'completedAt' };
+                readonly consentData: { readonly column: 'consentData' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly employeeData: { readonly column: 'employeeData' };
+                readonly employeeId: { readonly column: 'employeeId' };
+                readonly hrData: { readonly column: 'hrData' };
+                readonly id: { readonly column: 'id' };
+                readonly organizationId: { readonly column: 'organizationId' };
+                readonly reviewedAt: { readonly column: 'reviewedAt' };
+                readonly reviewedById: { readonly column: 'reviewedById' };
+                readonly status: { readonly column: 'status' };
+                readonly submittedAt: { readonly column: 'submittedAt' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
           readonly Organization: {
             readonly fields: {
               readonly code: {
@@ -4810,6 +5208,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'Notification';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['organizationId'];
+                };
+              };
+              readonly onboardingSubmissions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'OnboardingSubmission';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -5290,7 +5699,18 @@ type ContractBase = Omit<
                 readonly name: 'LEAVE_REQUEST_REVIEW_REQUIRED';
                 readonly value: 'LEAVE_REQUEST_REVIEW_REQUIRED';
               },
+              { readonly name: 'ONBOARDING_SUBMITTED'; readonly value: 'ONBOARDING_SUBMITTED' },
               { readonly name: 'SYSTEM'; readonly value: 'SYSTEM' },
+            ];
+          };
+          readonly OnboardingStatus: {
+            readonly codecId: 'pg/text@1';
+            readonly members: readonly [
+              { readonly name: 'DRAFT'; readonly value: 'DRAFT' },
+              { readonly name: 'SUBMITTED'; readonly value: 'SUBMITTED' },
+              { readonly name: 'UNDER_REVIEW'; readonly value: 'UNDER_REVIEW' },
+              { readonly name: 'RETURNED'; readonly value: 'RETURNED' },
+              { readonly name: 'COMPLETED'; readonly value: 'COMPLETED' },
             ];
           };
           readonly OtpPurpose: {
@@ -5504,6 +5924,23 @@ type ContractBase = Omit<
           readonly ref: {
             readonly entry: 'Notification';
             readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'uuidv4'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'OnboardingSubmission';
+            readonly field: 'id';
+            readonly namespace: 'public';
+          };
+        },
+        {
+          readonly onCreate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly onUpdate: { readonly id: 'timestampNow'; readonly kind: 'generator' };
+          readonly ref: {
+            readonly entry: 'OnboardingSubmission';
+            readonly field: 'updatedAt';
             readonly namespace: 'public';
           };
         },

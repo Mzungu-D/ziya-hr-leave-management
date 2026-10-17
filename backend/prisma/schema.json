@@ -48,6 +48,10 @@
       "model": "Notification",
       "namespace": "public"
     },
+    "OnboardingSubmission": {
+      "model": "OnboardingSubmission",
+      "namespace": "public"
+    },
     "Organization": {
       "model": "Organization",
       "namespace": "public"
@@ -277,8 +281,37 @@
                 "value": "LEAVE_REQUEST_REVIEW_REQUIRED"
               },
               {
+                "name": "ONBOARDING_SUBMITTED",
+                "value": "ONBOARDING_SUBMITTED"
+              },
+              {
                 "name": "SYSTEM",
                 "value": "SYSTEM"
+              }
+            ]
+          },
+          "OnboardingStatus": {
+            "codecId": "pg/text@1",
+            "members": [
+              {
+                "name": "DRAFT",
+                "value": "DRAFT"
+              },
+              {
+                "name": "SUBMITTED",
+                "value": "SUBMITTED"
+              },
+              {
+                "name": "UNDER_REVIEW",
+                "value": "UNDER_REVIEW"
+              },
+              {
+                "name": "RETURNED",
+                "value": "RETURNED"
+              },
+              {
+                "name": "COMPLETED",
+                "value": "COMPLETED"
               }
             ]
           },
@@ -1068,6 +1101,22 @@
                   "namespace": "public"
                 }
               },
+              "onboardingSubmission": {
+                "cardinality": "1:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "employeeId"
+                  ]
+                },
+                "to": {
+                  "model": "OnboardingSubmission",
+                  "namespace": "public"
+                }
+              },
               "organization": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -1128,6 +1177,21 @@
                 },
                 "to": {
                   "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "reviewedOnboardingSubmissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "reviewedById"
+                  ]
+                },
+                "to": {
+                  "model": "OnboardingSubmission",
                   "namespace": "public"
                 }
               },
@@ -2431,6 +2495,202 @@
               "table": "Notification"
             }
           },
+          "OnboardingSubmission": {
+            "fields": {
+              "completedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "consentData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "employeeData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "hrData": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/json@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "organizationId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "OnboardingStatus",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "submittedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "employee": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "employeeId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              },
+              "organization": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "organizationId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Organization",
+                  "namespace": "public"
+                }
+              },
+              "reviewedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "reviewedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Employee",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "completedAt": {
+                  "column": "completedAt"
+                },
+                "consentData": {
+                  "column": "consentData"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "employeeData": {
+                  "column": "employeeData"
+                },
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "hrData": {
+                  "column": "hrData"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "organizationId": {
+                  "column": "organizationId"
+                },
+                "reviewedAt": {
+                  "column": "reviewedAt"
+                },
+                "reviewedById": {
+                  "column": "reviewedById"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "submittedAt": {
+                  "column": "submittedAt"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "OnboardingSubmission"
+            }
+          },
           "Organization": {
             "fields": {
               "code": {
@@ -2572,6 +2832,21 @@
                 },
                 "to": {
                   "model": "Notification",
+                  "namespace": "public"
+                }
+              },
+              "onboardingSubmissions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "organizationId"
+                  ]
+                },
+                "to": {
+                  "model": "OnboardingSubmission",
                   "namespace": "public"
                 }
               },
@@ -4855,8 +5130,8 @@
             "Notification": {
               "checks": [
                 {
-                  "expression": "\"type\" IN ('LEAVE_REQUEST_SUBMITTED', 'LEAVE_REQUEST_APPROVED', 'LEAVE_REQUEST_REJECTED', 'LEAVE_REQUEST_CANCELLED', 'LEAVE_REQUEST_REVIEW_REQUIRED', 'SYSTEM')",
-                  "name": "Notification_type_check_acab4d1e",
+                  "expression": "\"type\" IN ('LEAVE_REQUEST_SUBMITTED', 'LEAVE_REQUEST_APPROVED', 'LEAVE_REQUEST_REJECTED', 'LEAVE_REQUEST_CANCELLED', 'LEAVE_REQUEST_REVIEW_REQUIRED', 'ONBOARDING_SUBMITTED', 'SYSTEM')",
+                  "name": "Notification_type_check_b6ccc330",
                   "prefix": "Notification_type_check"
                 }
               ],
@@ -4997,6 +5272,202 @@
                 ]
               },
               "uniques": []
+            },
+            "OnboardingSubmission": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'RETURNED', 'COMPLETED')",
+                  "name": "OnboardingSubmission_status_check_b33a2c88",
+                  "prefix": "OnboardingSubmission_status_check"
+                }
+              ],
+              "columns": {
+                "completedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "consentData": {
+                  "codecId": "pg/json@1",
+                  "nativeType": "json",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "employeeData": {
+                  "codecId": "pg/json@1",
+                  "nativeType": "json",
+                  "nullable": true
+                },
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "hrData": {
+                  "codecId": "pg/json@1",
+                  "nativeType": "json",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "organizationId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "reviewedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "reviewedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DRAFT"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "OnboardingStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "submittedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "organizationId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "OnboardingSubmission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Organization"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "employeeId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "OnboardingSubmission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "reviewedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "OnboardingSubmission"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Employee"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "organizationId"
+                  ],
+                  "name": "OnboardingSubmission_organizationId_idx_2e17ef41",
+                  "prefix": "OnboardingSubmission_organizationId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "reviewedById"
+                  ],
+                  "name": "OnboardingSubmission_reviewedById_idx_e2835478",
+                  "prefix": "OnboardingSubmission_reviewedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "reviewedById"
+                  ],
+                  "name": "onboard_org_reviewer_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "status",
+                    "submittedAt"
+                  ],
+                  "name": "onboard_org_status_submitted_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "employeeId"
+                  ]
+                },
+                {
+                  "columns": [
+                    "organizationId",
+                    "employeeId"
+                  ]
+                }
+              ]
             },
             "Organization": {
               "columns": {
@@ -5619,7 +6090,18 @@
                 "LEAVE_REQUEST_REJECTED",
                 "LEAVE_REQUEST_CANCELLED",
                 "LEAVE_REQUEST_REVIEW_REQUIRED",
+                "ONBOARDING_SUBMITTED",
                 "SYSTEM"
+              ]
+            },
+            "OnboardingStatus": {
+              "kind": "valueSet",
+              "values": [
+                "DRAFT",
+                "SUBMITTED",
+                "UNDER_REVIEW",
+                "RETURNED",
+                "COMPLETED"
               ]
             },
             "OtpPurpose": {
@@ -5662,10 +6144,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "36bdf7d5d238f8e718a902a75f64ac7f0e2b079f60d0362eff3e004e6def1078"
+    "storageHash": "e8c934381ba4f989d052c74eb066d69df9e3fffeacd20a5117eb2a4681f9e7a0"
   },
   "execution": {
-    "executionHash": "6bcdb41c676071d8b43814d0449a78e0be412d9f33a37ce35adb917666f0f183",
+    "executionHash": "eac6cc0dd1b36bd60be07e7627762104520125f7f9fc483c397aab3c1498bfc2",
     "mutations": {
       "defaults": [
         {
@@ -5891,6 +6373,32 @@
           "ref": {
             "entry": "Notification",
             "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "OnboardingSubmission",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "OnboardingSubmission",
+            "field": "updatedAt",
             "namespace": "public"
           }
         },

@@ -1,7 +1,12 @@
+
 import type {
   Request,
   Response,
 } from "express";
+
+import {
+  Readable,
+} from "node:stream";
 
 import {
   getProfilePicture,
@@ -219,6 +224,9 @@ export async function getProfilePictureImageController(
   if (
     typeof storedObject.contentLength ===
       "number" &&
+    Number.isSafeInteger(
+      storedObject.contentLength,
+    ) &&
     storedObject.contentLength >= 0
   ) {
     res.setHeader(
@@ -234,23 +242,12 @@ export async function getProfilePictureImageController(
 
   /**
    * AWS SDK Node.js runtime normally exposes a readable stream.
+   * Use a runtime type check rather than casting a Buffer to a stream.
    */
   if (
-    typeof (
-      body as {
-        pipe?: unknown;
-      }
-    ).pipe ===
-    "function"
+    body instanceof Readable
   ) {
-    (
-      body as {
-        pipe(
-          destination: Response,
-        ): unknown;
-      }
-    ).pipe(res);
-
+    body.pipe(res);
     return;
   }
 

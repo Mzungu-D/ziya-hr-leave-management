@@ -1,0 +1,491 @@
+[
+  {
+    "id": "dropCheckConstraint.Notification.Notification_type_check_acab4d1e",
+    "label": "Drop check constraint \"Notification_type_check_acab4d1e\" on \"Notification\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "Notification_type_check_acab4d1e",
+        "table": "Notification"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Notification_type_check_acab4d1e\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Notification_type_check_acab4d1e",
+          "public",
+          "\"public\".\"Notification\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop check constraint \"Notification_type_check_acab4d1e\"",
+        "sql": "ALTER TABLE \"public\".\"Notification\" DROP CONSTRAINT \"Notification_type_check_acab4d1e\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Notification_type_check_acab4d1e\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Notification_type_check_acab4d1e",
+          "public",
+          "\"public\".\"Notification\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.OnboardingSubmission",
+    "label": "Create table \"OnboardingSubmission\"",
+    "summary": "Creates table \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"OnboardingSubmission\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"OnboardingSubmission\"",
+        "sql": "CREATE TABLE \"public\".\"OnboardingSubmission\" (\n  \"completedAt\" timestamptz,\n  \"consentData\" json,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"employeeData\" json,\n  \"employeeId\" text NOT NULL,\n  \"hrData\" json,\n  \"id\" text NOT NULL,\n  \"organizationId\" text NOT NULL,\n  \"reviewedAt\" timestamptz,\n  \"reviewedById\" text,\n  \"status\" text DEFAULT 'DRAFT' NOT NULL,\n  \"submittedAt\" timestamptz,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\"),\n  CONSTRAINT \"OnboardingSubmission_status_check_b33a2c88\" CHECK (\"status\" IN ('DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'RETURNED', 'COMPLETED'))\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"OnboardingSubmission\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "checkConstraint.Notification.Notification_type_check_b6ccc330",
+    "label": "Add check constraint \"Notification_type_check_b6ccc330\" on \"Notification\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "checkConstraint",
+        "name": "Notification_type_check_b6ccc330",
+        "table": "Notification"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"Notification_type_check_b6ccc330\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Notification_type_check_b6ccc330",
+          "public",
+          "\"public\".\"Notification\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add check constraint \"Notification_type_check_b6ccc330\"",
+        "sql": "ALTER TABLE \"public\".\"Notification\" ADD CONSTRAINT \"Notification_type_check_b6ccc330\" CHECK (\"type\" IN ('LEAVE_REQUEST_SUBMITTED', 'LEAVE_REQUEST_APPROVED', 'LEAVE_REQUEST_REJECTED', 'LEAVE_REQUEST_CANCELLED', 'LEAVE_REQUEST_REVIEW_REQUIRED', 'ONBOARDING_SUBMITTED', 'SYSTEM'))"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"Notification_type_check_b6ccc330\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "Notification_type_check_b6ccc330",
+          "public",
+          "\"public\".\"Notification\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.OnboardingSubmission.OnboardingSubmission_employeeId_key",
+    "label": "Add unique constraint on \"OnboardingSubmission\" (employeeId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "OnboardingSubmission_employeeId_key",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"OnboardingSubmission_employeeId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_employeeId_key",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"OnboardingSubmission_employeeId_key\"",
+        "sql": "ALTER TABLE \"public\".\"OnboardingSubmission\" ADD CONSTRAINT \"OnboardingSubmission_employeeId_key\" UNIQUE (\"employeeId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"OnboardingSubmission_employeeId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_employeeId_key",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.OnboardingSubmission.OnboardingSubmission_organizationId_employeeId_key",
+    "label": "Add unique constraint on \"OnboardingSubmission\" (organizationId, employeeId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "OnboardingSubmission_organizationId_employeeId_key",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"OnboardingSubmission_organizationId_employeeId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_organizationId_employeeId_key",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"OnboardingSubmission_organizationId_employeeId_key\"",
+        "sql": "ALTER TABLE \"public\".\"OnboardingSubmission\" ADD CONSTRAINT \"OnboardingSubmission_organizationId_employeeId_key\" UNIQUE (\"organizationId\", \"employeeId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"OnboardingSubmission_organizationId_employeeId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_organizationId_employeeId_key",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.OnboardingSubmission.OnboardingSubmission_organizationId_idx_2e17ef41",
+    "label": "Create index \"OnboardingSubmission_organizationId_idx_2e17ef41\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "OnboardingSubmission_organizationId_idx_2e17ef41",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"OnboardingSubmission_organizationId_idx_2e17ef41\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"OnboardingSubmission_organizationId_idx_2e17ef41\"",
+        "sql": "CREATE INDEX \"OnboardingSubmission_organizationId_idx_2e17ef41\" ON \"public\".\"OnboardingSubmission\" (\"organizationId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"OnboardingSubmission_organizationId_idx_2e17ef41\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission_organizationId_idx_2e17ef41\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.OnboardingSubmission.OnboardingSubmission_reviewedById_idx_e2835478",
+    "label": "Create index \"OnboardingSubmission_reviewedById_idx_e2835478\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "OnboardingSubmission_reviewedById_idx_e2835478",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"OnboardingSubmission_reviewedById_idx_e2835478\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission_reviewedById_idx_e2835478\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"OnboardingSubmission_reviewedById_idx_e2835478\"",
+        "sql": "CREATE INDEX \"OnboardingSubmission_reviewedById_idx_e2835478\" ON \"public\".\"OnboardingSubmission\" (\"reviewedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"OnboardingSubmission_reviewedById_idx_e2835478\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"OnboardingSubmission_reviewedById_idx_e2835478\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.OnboardingSubmission.onboard_org_reviewer_idx",
+    "label": "Create index \"onboard_org_reviewer_idx\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "onboard_org_reviewer_idx",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"onboard_org_reviewer_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"onboard_org_reviewer_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"onboard_org_reviewer_idx\"",
+        "sql": "CREATE INDEX \"onboard_org_reviewer_idx\" ON \"public\".\"OnboardingSubmission\" (\"organizationId\", \"reviewedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"onboard_org_reviewer_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"onboard_org_reviewer_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.OnboardingSubmission.onboard_org_status_submitted_idx",
+    "label": "Create index \"onboard_org_status_submitted_idx\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "onboard_org_status_submitted_idx",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"onboard_org_status_submitted_idx\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"onboard_org_status_submitted_idx\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"onboard_org_status_submitted_idx\"",
+        "sql": "CREATE INDEX \"onboard_org_status_submitted_idx\" ON \"public\".\"OnboardingSubmission\" (\"organizationId\", \"status\", \"submittedAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"onboard_org_status_submitted_idx\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"onboard_org_status_submitted_idx\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.OnboardingSubmission.OnboardingSubmission_organizationId_fkey",
+    "label": "Add foreign key \"OnboardingSubmission_organizationId_fkey\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "OnboardingSubmission_organizationId_fkey",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"OnboardingSubmission_organizationId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_organizationId_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"OnboardingSubmission_organizationId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"OnboardingSubmission\"\nADD CONSTRAINT \"OnboardingSubmission_organizationId_fkey\"\nFOREIGN KEY (\"organizationId\")\nREFERENCES \"public\".\"Organization\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"OnboardingSubmission_organizationId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_organizationId_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.OnboardingSubmission.OnboardingSubmission_employeeId_fkey",
+    "label": "Add foreign key \"OnboardingSubmission_employeeId_fkey\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "OnboardingSubmission_employeeId_fkey",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"OnboardingSubmission_employeeId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_employeeId_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"OnboardingSubmission_employeeId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"OnboardingSubmission\"\nADD CONSTRAINT \"OnboardingSubmission_employeeId_fkey\"\nFOREIGN KEY (\"employeeId\")\nREFERENCES \"public\".\"Employee\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"OnboardingSubmission_employeeId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_employeeId_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.OnboardingSubmission.OnboardingSubmission_reviewedById_fkey",
+    "label": "Add foreign key \"OnboardingSubmission_reviewedById_fkey\" on \"OnboardingSubmission\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "OnboardingSubmission_reviewedById_fkey",
+        "table": "OnboardingSubmission"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"OnboardingSubmission_reviewedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_reviewedById_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"OnboardingSubmission_reviewedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"OnboardingSubmission\"\nADD CONSTRAINT \"OnboardingSubmission_reviewedById_fkey\"\nFOREIGN KEY (\"reviewedById\")\nREFERENCES \"public\".\"Employee\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"OnboardingSubmission_reviewedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "OnboardingSubmission_reviewedById_fkey",
+          "public",
+          "\"public\".\"OnboardingSubmission\""
+        ]
+      }
+    ]
+  }
+]

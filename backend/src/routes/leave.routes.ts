@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 
 import { requireAuthentication } from "../middleware/auth.middleware.js";
@@ -8,8 +9,10 @@ import {
   createLeaveRequestController,
   getLeaveRequestController,
   hrApproveController,
+  getManagerLeaveReportController,
   hrRejectController,
   listHrPendingRequestsController,
+  listManagerTeamLeaveController,
   listLeaveBalancesController,
   listLeaveTypesController,
   listManagerPendingRequestsController,
@@ -76,6 +79,49 @@ router.get(
 router.post(
   "/requests",
   createLeaveRequestController,
+);
+
+/**
+ * ============================================================================
+ * MANAGER WORKSPACE
+ * ============================================================================
+ *
+ * Manager calendar and reports.
+ *
+ * Organization and manager identity are derived from the authenticated
+ * employee by the controller and service layer.
+ *
+ * The client must not supply organizationId or manager employeeId.
+ */
+
+/**
+ * GET /api/leave/manager/team-calendar
+ *
+ * Returns final-approved leave for the authenticated manager's team.
+ */
+router.get(
+  "/manager/team-calendar",
+  requireRole(
+    "MANAGER",
+    "HR_ADMIN",
+    "SUPER_ADMIN",
+  ),
+  listManagerTeamLeaveController,
+);
+
+/**
+ * GET /api/leave/manager/reports
+ *
+ * Returns leave statistics for the authenticated manager's team.
+ */
+router.get(
+  "/manager/reports",
+  requireRole(
+    "MANAGER",
+    "HR_ADMIN",
+    "SUPER_ADMIN",
+  ),
+  getManagerLeaveReportController,
 );
 
 /**

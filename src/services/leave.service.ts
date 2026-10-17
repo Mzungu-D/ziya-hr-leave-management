@@ -1,6 +1,6 @@
-/**
+﻿/**
  * ============================================================================
- * ZIYA HR — LEAVE MANAGEMENT API SERVICE
+ * ZIYA HR â€” LEAVE MANAGEMENT API SERVICE
  * ============================================================================
  *
  * Production frontend service for:
@@ -95,6 +95,12 @@ const LEAVE_ENDPOINTS = {
       leaveRequestId,
     )}/manager-reject`,
 
+  managerTeamCalendar:
+    "/api/leave/manager/team-calendar",
+
+  managerLeaveReports:
+    "/api/leave/manager/reports",
+
   hrPending:
     "/api/leave/requests/pending/hr",
 
@@ -120,6 +126,23 @@ export interface LeaveServiceError {
   code?: string;
   status?: number;
   details?: unknown;
+}
+
+export interface ManagerLeaveDateFilter {
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ManagerLeaveReport {
+  totalRequests: number;
+  totalRequestedDays: number;
+  totalApprovedDays: number;
+  byStatus: Record<string, number>;
+  byLeaveType: Record<string, {
+    requests: number;
+    requestedDays: number;
+    approvedDays: number;
+  }>;
 }
 
 export interface LeaveRequestOptions {
@@ -199,6 +222,7 @@ export interface LeaveRequest {
   endDate: string;
 
   days?: number;
+  requestedDays?: number;
   totalDays?: number;
 
   reason?: string | null;
@@ -968,7 +992,7 @@ export async function getLeaveBalances(
 
 /**
  * ============================================================================
- * EMPLOYEE — MY LEAVE REQUESTS
+ * EMPLOYEE â€” MY LEAVE REQUESTS
  * ============================================================================
  */
 
@@ -991,7 +1015,7 @@ export async function listMyLeaveRequests(
 
 /**
  * ============================================================================
- * EMPLOYEE — CREATE LEAVE REQUEST
+ * EMPLOYEE â€” CREATE LEAVE REQUEST
  * ============================================================================
  */
 
@@ -1019,7 +1043,7 @@ export async function createLeaveRequest(
 
 /**
  * ============================================================================
- * EMPLOYEE — GET SINGLE REQUEST
+ * EMPLOYEE â€” GET SINGLE REQUEST
  * ============================================================================
  */
 
@@ -1045,7 +1069,7 @@ export async function getLeaveRequest(
 
 /**
  * ============================================================================
- * EMPLOYEE — CANCEL REQUEST
+ * EMPLOYEE â€” CANCEL REQUEST
  * ============================================================================
  */
 
@@ -1071,7 +1095,7 @@ export async function cancelLeaveRequest(
 
 /**
  * ============================================================================
- * MANAGER — PENDING REQUESTS
+ * MANAGER â€” PENDING REQUESTS
  * ============================================================================
  */
 
@@ -1096,9 +1120,48 @@ export async function listManagerPendingRequests(
 
 /**
  * ============================================================================
- * MANAGER — APPROVE
+ * MANAGER â€” APPROVE
  * ============================================================================
  */
+
+export async function listManagerTeamLeave(
+  filters: ManagerLeaveDateFilter = {},
+  options: LeaveRequestOptions = {},
+): Promise<LeaveRequest[]> {
+  const params = new URLSearchParams();
+  if (filters.startDate?.trim()) params.set("startDate", filters.startDate.trim());
+  if (filters.endDate?.trim()) params.set("endDate", filters.endDate.trim());
+
+  const query = params.toString();
+  const endpoint = query
+    ? `${LEAVE_ENDPOINTS.managerTeamCalendar}?${query}`
+    : LEAVE_ENDPOINTS.managerTeamCalendar;
+
+  const data = await request<LeaveRequest[]>(endpoint, {
+    method: "GET",
+    signal: options.signal,
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getManagerLeaveReport(
+  filters: ManagerLeaveDateFilter = {},
+  options: LeaveRequestOptions = {},
+): Promise<ManagerLeaveReport> {
+  const params = new URLSearchParams();
+  if (filters.startDate?.trim()) params.set("startDate", filters.startDate.trim());
+  if (filters.endDate?.trim()) params.set("endDate", filters.endDate.trim());
+
+  const query = params.toString();
+  const endpoint = query
+    ? `${LEAVE_ENDPOINTS.managerLeaveReports}?${query}`
+    : LEAVE_ENDPOINTS.managerLeaveReports;
+
+  return request<ManagerLeaveReport>(endpoint, {
+    method: "GET",
+    signal: options.signal,
+  });
+}
 
 export async function managerApproveLeaveRequest(
   leaveRequestId: string,
@@ -1130,7 +1193,7 @@ export async function managerApproveLeaveRequest(
 
 /**
  * ============================================================================
- * MANAGER — REJECT
+ * MANAGER â€” REJECT
  * ============================================================================
  */
 
@@ -1164,7 +1227,7 @@ export async function managerRejectLeaveRequest(
 
 /**
  * ============================================================================
- * HR — PENDING REQUESTS
+ * HR â€” PENDING REQUESTS
  * ============================================================================
  */
 
@@ -1189,7 +1252,7 @@ export async function listHrPendingRequests(
 
 /**
  * ============================================================================
- * HR — FINAL APPROVAL
+ * HR â€” FINAL APPROVAL
  * ============================================================================
  */
 
@@ -1223,7 +1286,7 @@ export async function hrApproveLeaveRequest(
 
 /**
  * ============================================================================
- * HR — FINAL REJECTION
+ * HR â€” FINAL REJECTION
  * ============================================================================
  */
 
@@ -1277,6 +1340,10 @@ const leaveService = {
   cancelLeaveRequest,
 
   listManagerPendingRequests,
+
+  listManagerTeamLeave,
+
+  getManagerLeaveReport,
 
   managerApproveLeaveRequest,
 

@@ -10,10 +10,12 @@ import {
   getLeaveBalances,
   getLeaveRequest,
   hrApproveLeaveRequest,
+  getManagerLeaveReport,
   hrRejectLeaveRequest,
   listHrPendingRequests,
   listLeaveTypes,
   listManagerPendingRequests,
+  listManagerTeamLeave,
   listMyLeaveRequests,
   managerApproveLeaveRequest,
   managerRejectLeaveRequest,
@@ -542,5 +544,64 @@ export async function hrRejectController(
   res.status(200).json({
     success: true,
     data: leaveRequest,
+  });
+}
+
+/**
+ * GET /api/leave/manager/team-calendar
+ *
+ * Returns final-approved leave for the authenticated manager's team.
+ * Organization and manager identity come from the authenticated context.
+ */
+export async function listManagerTeamLeaveController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const context = await getContext(req);
+
+  const query = z.object({
+    startDate: z.string().trim().min(1).optional(),
+    endDate: z.string().trim().min(1).optional(),
+  }).parse(req.query);
+
+  const requests = await listManagerTeamLeave(
+    context.organizationId,
+    context.employeeId,
+    query.startDate,
+    query.endDate,
+  );
+
+  res.status(200).json({
+    success: true,
+    data: requests,
+  });
+}
+
+/**
+ * GET /api/leave/manager/reports
+ *
+ * Returns leave statistics for the authenticated manager's team.
+ */
+export async function getManagerLeaveReportController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const context = await getContext(req);
+
+  const query = z.object({
+    startDate: z.string().trim().min(1).optional(),
+    endDate: z.string().trim().min(1).optional(),
+  }).parse(req.query);
+
+  const report = await getManagerLeaveReport(
+    context.organizationId,
+    context.employeeId,
+    query.startDate,
+    query.endDate,
+  );
+
+  res.status(200).json({
+    success: true,
+    data: report,
   });
 }

@@ -6,184 +6,85 @@ import {
   S3Client,
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
-
 import {
   createHash,
   randomUUID,
+  timingSafeEqual,
 } from "node:crypto";
-
 import path from "node:path";
-
 import sharp from "sharp";
+import { fileTypeFromBuffer } from "file-type";
 
-import {
-  fileTypeFromBuffer,
-} from "file-type";
+import { env } from "../config/env.js";
+import { AppError } from "../middleware/error.middleware.js";
 
-import {
-  env,
-} from "../config/env.js";
+/* -------------------------------------------------------------------------- */
+/* Configuration                                                              */
+/* -------------------------------------------------------------------------- */
 
-import {
-  AppError,
-} from "../middleware/error.middleware.js";
+const MAX_PROFILE_PICTURE_BYTES = 5 * 1024 * 1024;
+const MAX_NORMALIZED_PROFILE_PICTURE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_WIDTH = 4096;
+const MAX_IMAGE_HEIGHT = 4096;
+const MAX_IMAGE_PIXELS = 16_000_000;
 
-/**
- * ============================================================================
- * PROFILE PICTURE PRIVATE OBJECT STORAGE
- * ============================================================================
- *
- * Production security properties:
- *
- * - Private object storage only.
- * - No public object URLs.
- * - No user-controlled storage keys.
- * - Strict object-key validation.
- * - Strict upload byte limits.
- * - Strict image dimension limits.
- * - Strict decoded-pixel limits.
- * - Binary file-signature validation.
- * - Sharp decode/re-encode pipeline.
- * - Metadata stripping through normalization.
- * - JPEG-only normalized storage.
- * - Server-generated UUID object names.
- * - SHA-256 integrity hashing.
- * - S3 SHA-256 checksum on upload.
- * - Server-side AES256 encryption.
- * - Explicit private/no-store caching.
- * - Storage errors are never exposed directly to clients.
- * - Download/delete helpers reject arbitrary object keys.
- *
- * Authorization, tenant ownership and database lifecycle remain in:
- *
- *   profile-picture.service.ts
- *
- * This service deliberately does not make employee authorization decisions.
- */
+const MAX_ONBOARDING_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
-/**
- * ============================================================================
- * CONSTANTS
- * ============================================================================
- */
+const PRIVATE_CACHE_CONTROL = "private, no-store, max-age=0";
+const PROFILE_PICTURE_PREFIX = "profile-pictures";
+const ONBOARDING_DOCUMENT_PREFIX = "onboarding-documents";
 
-/**
- * Maximum incoming multipart file size.
- *
- * Multer also enforces this limit before this service receives the buffer.
- */
-const MAX_PROFILE_PICTURE_BYTES =
-  5 * 1024 * 1024;
+const STORED_PROFILE_PICTURE_MIME = "image/jpeg";
 
-/**
- * Maximum source image dimensions.
- */
-const MAX_IMAGE_WIDTH =
-  4096;
+const ALLOWED_PROFILE_PICTURE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
-const MAX_IMAGE_HEIGHT =
-  4096;
+const ALLOWED_ONBOARDING_DOCUMENT_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+]);
 
-/**
- * Maximum decoded pixel count.
- *
- * This protects the image-processing pipeline against decompression-bomb
- * style images.
- */
-const MAX_IMAGE_PIXELS =
-  16_000_000;
+export const ONBOARDING_DOCUMENT_TYPES = [
+  "IDENTIFICATION",
+  "KRA_CERTIFICATE",
+  "NSSF_PROOF",
+  "SHA_PROOF",
+  "OTHER",
+] as const;
 
-/**
- * Maximum normalized output size.
- */
-const MAX_NORMALIZED_PROFILE_PICTURE_BYTES =
-  5 * 1024 * 1024;
+export type OnboardingDocumentType =
+  (typeof ONBOARDING_DOCUMENT_TYPES)[number];
 
-/**
- * All stored profile pictures are normalized to JPEG.
- */
-const STORED_MIME_TYPE =
-  "image/jpeg";
+export type OnboardingDocumentMimeType =
+  | "application/pdf"
+  | "image/jpeg"
+  | "image/png";
 
-const STORED_EXTENSION =
-  ".jpg";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/**
- * Accepted source formats.
- *
- * Keep this allowlist deliberately small.
- */
-const ALLOWED_INPUT_MIME_TYPES =
-  new Set<string>([
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ]);
-
-/**
- * Profile pictures are authorization-sensitive resources.
- *
- * Do not allow browsers, proxies or intermediary caches to retain them.
- */
-const PRIVATE_CACHE_CONTROL =
-  "private, no-store, max-age=0";
-
-/**
- * Storage namespace.
- */
-const PROFILE_PICTURE_PREFIX =
-  "profile-pictures";
-
-/**
- * Server-generated profile-picture object filename.
- *
- * randomUUID() produces the UUID portion.
- */
 const PROFILE_PICTURE_FILENAME_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.jpg$/i;
 
-/**
- * ============================================================================
- * STORAGE CLIENT
- * ============================================================================
- */
+/* -------------------------------------------------------------------------- */
+/* Storage client                                                             */
+/* -------------------------------------------------------------------------- */
 
 interface StorageContext {
   client: S3Client;
   bucket: string;
 }
 
-/**
- * Creates the S3 client lazily.
- *
- * Missing storage configuration produces a controlled 503 rather than causing
- * the entire application to fail during module import.
- */
 function createStorageContext(): StorageContext {
-  const endpoint =
-    typeof env.S3_ENDPOINT === "string"
-      ? env.S3_ENDPOINT.trim()
-      : "";
-
-  const region =
-    typeof env.S3_REGION === "string"
-      ? env.S3_REGION.trim()
-      : "";
-
-  const accessKeyId =
-    typeof env.S3_ACCESS_KEY_ID === "string"
-      ? env.S3_ACCESS_KEY_ID.trim()
-      : "";
-
-  const secretAccessKey =
-    typeof env.S3_SECRET_ACCESS_KEY === "string"
-      ? env.S3_SECRET_ACCESS_KEY.trim()
-      : "";
-
-  const bucket =
-    typeof env.S3_BUCKET_NAME === "string"
-      ? env.S3_BUCKET_NAME.trim()
-      : "";
+  const endpoint = env.S3_ENDPOINT?.trim();
+  const region = env.S3_REGION?.trim();
+  const accessKeyId = env.S3_ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.S3_SECRET_ACCESS_KEY?.trim();
+  const bucket = env.S3_BUCKET_NAME?.trim();
 
   if (
     !endpoint ||
@@ -194,96 +95,117 @@ function createStorageContext(): StorageContext {
   ) {
     throw new AppError(
       503,
-      "Profile picture storage is not configured.",
-      "PROFILE_PICTURE_STORAGE_NOT_CONFIGURED",
+      "Private file storage is not configured.",
+      "STORAGE_NOT_CONFIGURED",
     );
   }
 
-  /**
-   * The endpoint and credentials come exclusively from trusted server-side
-   * configuration.
-   *
-   * They must never be derived from request input.
-   *
-   * Railway's current S3-compatible buckets use virtual-hosted addressing,
-   * therefore path-style addressing remains disabled.
-   */
-  const client =
-    new S3Client({
-      endpoint,
+  let parsedEndpoint: URL;
 
-      region,
+  try {
+    parsedEndpoint = new URL(endpoint);
+  } catch {
+    throw new AppError(
+      503,
+      "The private storage endpoint is invalid.",
+      "STORAGE_CONFIGURATION_INVALID",
+    );
+  }
 
-      credentials: {
-        accessKeyId,
-
-        secretAccessKey,
-      },
-
-      forcePathStyle:
-        false,
-    });
+  if (
+    parsedEndpoint.protocol !== "https:" &&
+    parsedEndpoint.hostname !== "localhost" &&
+    parsedEndpoint.hostname !== "127.0.0.1"
+  ) {
+    throw new AppError(
+      503,
+      "Private storage must use HTTPS.",
+      "STORAGE_HTTPS_REQUIRED",
+    );
+  }
 
   return {
-    client,
-
+    client: new S3Client({
+      endpoint: parsedEndpoint.toString(),
+      region,
+      credentials: { accessKeyId, secretAccessKey },
+      forcePathStyle: false,
+    }),
     bucket,
   };
 }
 
-/**
- * ============================================================================
- * PUBLIC TYPES
- * ============================================================================
- */
+/* -------------------------------------------------------------------------- */
+/* Public interfaces                                                          */
+/* -------------------------------------------------------------------------- */
 
 export interface ProfilePictureUploadInput {
   organizationId: string;
-
   employeeId: string;
-
   buffer: Buffer;
-
   originalName?: string;
-
   declaredMimeType?: string;
 }
 
 export interface ProfilePictureUploadResult {
   storageKey: string;
-
   originalName: string;
-
   mimeType: string;
-
   sizeBytes: number;
-
   sha256: string;
-
   width: number;
-
   height: number;
 }
 
-/**
- * ============================================================================
- * GENERIC VALIDATION
- * ============================================================================
- */
+export interface PrivateObjectDownload {
+  body: Buffer;
+  contentType?: string;
+  contentLength?: number;
+  metadata?: Record<string, string>;
+  etag?: string;
+}
 
-/**
- * Validates an identifier that will participate in an object-storage path.
- *
- * User-controlled path separators, control characters and traversal sequences
- * are never accepted.
- */
+export interface StoredObjectVerification {
+  exists: boolean;
+  contentType?: string;
+  contentLength?: number;
+  sha256?: string;
+  etag?: string;
+}
+
+export interface OnboardingDocumentUploadInput {
+  organizationId: string;
+  employeeId: string;
+  documentType: OnboardingDocumentType;
+  buffer: Buffer;
+  originalName?: string;
+}
+
+export interface OnboardingDocumentUploadResult {
+  storageKey: string;
+  originalName: string;
+  mimeType: OnboardingDocumentMimeType;
+  sizeBytes: number;
+  sha256: string;
+}
+
+export interface OnboardingDocumentDownloadResult {
+  body: Buffer;
+  contentType: OnboardingDocumentMimeType;
+  contentLength: number;
+  sha256: string;
+  etag?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Common validation helpers                                                  */
+/* -------------------------------------------------------------------------- */
+
 function assertNonEmptyIdentifier(
   value: string,
   fieldName: string,
 ): string {
-  if (
-    typeof value !== "string"
-  ) {
+  if (typeof value !== "string") {
     throw new AppError(
       400,
       `${fieldName} is required.`,
@@ -291,46 +213,15 @@ function assertNonEmptyIdentifier(
     );
   }
 
-  const normalized =
-    value.trim();
-
-  if (!normalized) {
-    throw new AppError(
-      400,
-      `${fieldName} is required.`,
-      "STORAGE_IDENTIFIER_INVALID",
-    );
-  }
+  const normalized = value.trim();
 
   if (
+    !normalized ||
+    normalized.length > 255 ||
     normalized.includes("/") ||
     normalized.includes("\\") ||
-    normalized.includes("\0") ||
-    /[\u0000-\u001F\u007F]/.test(
-      normalized,
-    )
-  ) {
-    throw new AppError(
-      400,
-      `${fieldName} is invalid.`,
-      "STORAGE_IDENTIFIER_INVALID",
-    );
-  }
-
-  if (
-    normalized === "." ||
-    normalized === ".." ||
-    normalized.includes("..")
-  ) {
-    throw new AppError(
-      400,
-      `${fieldName} is invalid.`,
-      "STORAGE_IDENTIFIER_INVALID",
-    );
-  }
-
-  if (
-    normalized.length > 255
+    normalized.includes("..") ||
+    /[\u0000-\u001F\u007F]/.test(normalized)
   ) {
     throw new AppError(
       400,
@@ -342,1277 +233,1052 @@ function assertNonEmptyIdentifier(
   return normalized;
 }
 
-/**
- * ============================================================================
- * ORIGINAL FILENAME
- * ============================================================================
- *
- * The original filename is metadata only.
- *
- * It is NEVER used as an S3 object key.
- */
-function sanitizeOriginalName(
-  originalName?: string,
-): string {
+function sanitizeOriginalName(originalName?: string): string {
+  if (typeof originalName !== "string" || !originalName.trim()) {
+    return "uploaded-file";
+  }
+
+  const sanitized = path
+    .basename(originalName)
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .trim();
+
+  return sanitized ? sanitized.slice(0, 255) : "uploaded-file";
+}
+
+function calculateSha256(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
+}
+
+function verifySha256(
+  expectedHex: string,
+  actualHex: string,
+): boolean {
   if (
-    typeof originalName !== "string" ||
-    !originalName.trim()
+    !/^[a-f0-9]{64}$/i.test(expectedHex) ||
+    !/^[a-f0-9]{64}$/i.test(actualHex)
   ) {
-    return "profile-picture.jpg";
+    return false;
   }
 
-  let baseName: string;
+  const expected = Buffer.from(expectedHex, "hex");
+  const actual = Buffer.from(actualHex, "hex");
 
-  try {
-    baseName =
-      path.basename(
-        originalName,
-      );
-  } catch {
-    return "profile-picture.jpg";
-  }
-
-  const sanitized =
-    baseName
-      .replace(
-        /[\u0000-\u001F\u007F]/g,
-        "",
-      )
-      .replace(
-        /[\\/:\"*?<>|]/g,
-        "_",
-      )
-      .trim();
-
-  if (!sanitized) {
-    return "profile-picture.jpg";
-  }
-
-  return sanitized.slice(
-    0,
-    255,
+  return (
+    expected.length === actual.length &&
+    timingSafeEqual(expected, actual)
   );
 }
 
-/**
- * ============================================================================
- * IMAGE VALIDATION
- * ============================================================================
- */
-
-interface ImageInspection {
-  mimeType: string;
-
-  width: number;
-
-  height: number;
-}
-
-/**
- * Creates a Sharp instance with restrictive decoding options.
- *
- * IMPORTANT:
- *
- * Do not change this return type to:
- *
- *   sharp.Sharp
- *
- * The installed Sharp typings in this project do not expose Sharp through a
- * namespace type. ReturnType<typeof sharp> is the correct type here.
- */
-function createRestrictedSharp(
-  buffer: Buffer,
-): ReturnType<typeof sharp> {
-  return sharp(
-    buffer,
-    {
-      /**
-       * Apply the pixel limit during decoding itself.
-       *
-       * This is stronger than checking the dimensions only after decoding.
-       */
-      limitInputPixels:
-        MAX_IMAGE_PIXELS,
-
-      /**
-       * Reduce unnecessary memory pressure where supported.
-       */
-      sequentialRead:
-        true,
-
-      /**
-       * Treat decoder warnings as processing failures.
-       */
-      failOn:
-        "warning",
-    },
-  );
-}
-
-/**
- * Validates actual binary content and image characteristics.
- *
- * Browser-supplied Content-Type is deliberately not trusted.
- */
-async function validateImageBuffer(
-  buffer: Buffer,
-): Promise<ImageInspection> {
-  if (
-    !Buffer.isBuffer(buffer)
-  ) {
-    throw new AppError(
-      400,
-      "Uploaded file is invalid.",
-      "PROFILE_PICTURE_FILE_INVALID",
-    );
-  }
-
-  if (
-    buffer.length === 0
-  ) {
-    throw new AppError(
-      400,
-      "Uploaded file is empty.",
-      "PROFILE_PICTURE_FILE_EMPTY",
-    );
-  }
-
-  if (
-    buffer.length >
-    MAX_PROFILE_PICTURE_BYTES
-  ) {
-    throw new AppError(
-      413,
-      "Profile picture must not exceed 5 MB.",
-      "PROFILE_PICTURE_TOO_LARGE",
-    );
-  }
-
-  /**
-   * Inspect the actual binary signature.
-   *
-   * Do not trust the multipart Content-Type header.
-   */
-  let detectedType:
-    Awaited<
-      ReturnType<
-        typeof fileTypeFromBuffer
-      >
-    >;
-
-  try {
-    detectedType =
-      await fileTypeFromBuffer(
-        buffer,
-      );
-  } catch {
-    throw new AppError(
-      415,
-      "The uploaded file format could not be determined.",
-      "PROFILE_PICTURE_FORMAT_UNKNOWN",
-    );
-  }
-
-  if (
-    !detectedType ||
-    !ALLOWED_INPUT_MIME_TYPES.has(
-      detectedType.mime,
-    )
-  ) {
-    throw new AppError(
-      415,
-      "Unsupported profile picture format. JPEG, PNG, and WebP images are allowed.",
-      "PROFILE_PICTURE_FORMAT_UNSUPPORTED",
-    );
-  }
-
-  /**
-   * Decode with the restricted Sharp instance.
-   */
-  let metadata:
-    Awaited<
-      ReturnType<
-        ReturnType<typeof sharp>["metadata"]
-      >
-    >;
-
-  try {
-    metadata =
-      await createRestrictedSharp(
-        buffer,
-      ).metadata();
-  } catch {
-    throw new AppError(
-      400,
-      "The uploaded image could not be decoded safely.",
-      "PROFILE_PICTURE_IMAGE_INVALID",
-    );
-  }
-
-  const width =
-    metadata.width ?? 0;
-
-  const height =
-    metadata.height ?? 0;
-
-  if (
-    !Number.isSafeInteger(
-      width,
-    ) ||
-    !Number.isSafeInteger(
-      height,
-    ) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    throw new AppError(
-      400,
-      "The uploaded image has invalid dimensions.",
-      "PROFILE_PICTURE_DIMENSIONS_INVALID",
-    );
-  }
-
-  if (
-    width >
-      MAX_IMAGE_WIDTH ||
-    height >
-      MAX_IMAGE_HEIGHT
-  ) {
-    throw new AppError(
-      413,
-      "Profile picture dimensions are too large.",
-      "PROFILE_PICTURE_DIMENSIONS_TOO_LARGE",
-    );
-  }
-
-  const pixels =
-    width * height;
-
-  if (
-    !Number.isSafeInteger(
-      pixels,
-    ) ||
-    pixels >
-      MAX_IMAGE_PIXELS
-  ) {
-    throw new AppError(
-      413,
-      "Profile picture contains too many pixels.",
-      "PROFILE_PICTURE_PIXELS_TOO_LARGE",
-    );
-  }
-
-  return {
-    mimeType:
-      detectedType.mime,
-
-    width,
-
-    height,
+function isNotFound(error: unknown): boolean {
+  const candidate = error as {
+    $metadata?: { httpStatusCode?: number };
+    name?: string;
+    Code?: string;
   };
-}
 
-/**
- * ============================================================================
- * IMAGE NORMALIZATION
- * ============================================================================
- *
- * Every accepted image is:
- *
- * 1. decoded
- * 2. orientation-normalized
- * 3. resized within limits
- * 4. re-encoded as JPEG
- * 5. independently verified
- *
- * The original uploaded binary is never served.
- */
-async function normalizeProfileImage(
-  buffer: Buffer,
-): Promise<{
-  buffer: Buffer;
-
-  width: number;
-
-  height: number;
-}> {
-  /**
-   * Validate the source before processing.
-   */
-  await validateImageBuffer(
-    buffer,
+  return (
+    candidate?.$metadata?.httpStatusCode === 404 ||
+    candidate?.name === "NotFound" ||
+    candidate?.Code === "NoSuchKey" ||
+    candidate?.Code === "NotFound"
   );
-
-  let output:
-    Buffer;
-
-  try {
-    output =
-      await createRestrictedSharp(
-        buffer,
-      )
-        /**
-         * Apply EXIF orientation before normalization.
-         */
-        .rotate()
-
-        /**
-         * Keep the image within the approved maximum dimensions.
-         */
-        .resize({
-          width:
-            MAX_IMAGE_WIDTH,
-
-          height:
-            MAX_IMAGE_HEIGHT,
-
-          fit:
-            "inside",
-
-          withoutEnlargement:
-            true,
-
-          kernel:
-            sharp.kernel.lanczos3,
-        })
-
-        /**
-         * Normalize all accepted source formats to JPEG.
-         */
-        .jpeg({
-          quality:
-            88,
-
-          progressive:
-            true,
-
-          mozjpeg:
-            true,
-
-          chromaSubsampling:
-            "4:4:4",
-
-          force:
-            true,
-        })
-
-        .toBuffer();
-  } catch {
-    throw new AppError(
-      400,
-      "Unable to safely process the profile picture.",
-      "PROFILE_PICTURE_PROCESSING_FAILED",
-    );
-  }
-
-  if (
-    !Buffer.isBuffer(output) ||
-    output.length === 0
-  ) {
-    throw new AppError(
-      500,
-      "Processed profile picture is empty.",
-      "PROFILE_PICTURE_PROCESSING_FAILED",
-    );
-  }
-
-  if (
-    output.length >
-    MAX_NORMALIZED_PROFILE_PICTURE_BYTES
-  ) {
-    throw new AppError(
-      413,
-      "Processed profile picture exceeds the 5 MB limit.",
-      "PROFILE_PICTURE_TOO_LARGE",
-    );
-  }
-
-  /**
-   * Verify the actual output format rather than assuming Sharp produced JPEG.
-   */
-  let outputType:
-    Awaited<
-      ReturnType<
-        typeof fileTypeFromBuffer
-      >
-    >;
-
-  try {
-    outputType =
-      await fileTypeFromBuffer(
-        output,
-      );
-  } catch {
-    throw new AppError(
-      500,
-      "Processed profile picture could not be verified.",
-      "PROFILE_PICTURE_VERIFICATION_FAILED",
-    );
-  }
-
-  if (
-    !outputType ||
-    outputType.mime !==
-      STORED_MIME_TYPE
-  ) {
-    throw new AppError(
-      500,
-      "Processed profile picture has an invalid format.",
-      "PROFILE_PICTURE_VERIFICATION_FAILED",
-    );
-  }
-
-  /**
-   * Verify the normalized image dimensions again.
-   */
-  let outputMetadata:
-    Awaited<
-      ReturnType<
-        ReturnType<typeof sharp>["metadata"]
-      >
-    >;
-
-  try {
-    outputMetadata =
-      await createRestrictedSharp(
-        output,
-      ).metadata();
-  } catch {
-    throw new AppError(
-      500,
-      "Processed profile picture could not be verified.",
-      "PROFILE_PICTURE_VERIFICATION_FAILED",
-    );
-  }
-
-  const width =
-    outputMetadata.width ?? 0;
-
-  const height =
-    outputMetadata.height ?? 0;
-
-  if (
-    !Number.isSafeInteger(
-      width,
-    ) ||
-    !Number.isSafeInteger(
-      height,
-    ) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    throw new AppError(
-      500,
-      "Processed profile picture has invalid dimensions.",
-      "PROFILE_PICTURE_DIMENSIONS_INVALID",
-    );
-  }
-
-  if (
-    width >
-      MAX_IMAGE_WIDTH ||
-    height >
-      MAX_IMAGE_HEIGHT ||
-    width * height >
-      MAX_IMAGE_PIXELS
-  ) {
-    throw new AppError(
-      500,
-      "Processed profile picture exceeds the permitted dimensions.",
-      "PROFILE_PICTURE_DIMENSIONS_TOO_LARGE",
-    );
-  }
-
-  return {
-    buffer:
-      output,
-
-    width,
-
-    height,
-  };
 }
 
-/**
- * ============================================================================
- * HASHING
- * ============================================================================
- */
+/* -------------------------------------------------------------------------- */
+/* Profile-picture storage-key validation                                     */
+/* -------------------------------------------------------------------------- */
 
-function calculateSha256(
-  buffer: Buffer,
-): string {
-  return createHash(
-    "sha256",
-  )
-    .update(buffer)
-    .digest("hex");
-}
-
-/**
- * ============================================================================
- * STORAGE KEY GENERATION
- * ============================================================================
- *
- * User-provided filenames are never incorporated into the object key.
- */
 function createProfilePictureStorageKey(
   organizationId: string,
   employeeId: string,
 ): string {
-  const organization =
-    encodeURIComponent(
-      assertNonEmptyIdentifier(
-        organizationId,
-        "organizationId",
-      ),
-    );
-
-  const employee =
-    encodeURIComponent(
-      assertNonEmptyIdentifier(
-        employeeId,
-        "employeeId",
-      ),
-    );
-
   return [
     "organizations",
-
-    organization,
-
+    encodeURIComponent(
+      assertNonEmptyIdentifier(organizationId, "organizationId"),
+    ),
     "employees",
-
-    employee,
-
+    encodeURIComponent(
+      assertNonEmptyIdentifier(employeeId, "employeeId"),
+    ),
     PROFILE_PICTURE_PREFIX,
-
-    `${randomUUID()}${STORED_EXTENSION}`,
+    `${randomUUID()}.jpg`,
   ].join("/");
 }
 
-/**
- * ============================================================================
- * STORAGE KEY VALIDATION
- * ============================================================================
- *
- * Storage helpers must never operate on arbitrary S3 keys.
- *
- * Valid structure:
- *
- * organizations/
- *   {organizationId}/
- *   employees/
- *   {employeeId}/
- *   profile-pictures/
- *   {uuid}.jpg
- */
 function assertProfilePictureStorageKey(
   storageKey: string,
 ): string {
   if (
-    typeof storageKey !==
-    "string"
+    typeof storageKey !== "string" ||
+    storageKey.length > 1024 ||
+    storageKey.startsWith("/") ||
+    storageKey.endsWith("/") ||
+    storageKey.includes("\\") ||
+    storageKey.includes("//") ||
+    /[\u0000-\u001F\u007F]/.test(storageKey)
   ) {
     throw new AppError(
       400,
-      "Storage key is invalid.",
+      "The profile-picture storage key is invalid.",
       "PROFILE_PICTURE_STORAGE_KEY_INVALID",
     );
   }
 
-  const key =
-    storageKey.trim();
-
-  if (!key) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
+  const parts = storageKey.split("/");
 
   if (
-    key.length > 1024
+    parts.length !== 6 ||
+    parts[0] !== "organizations" ||
+    parts[2] !== "employees" ||
+    parts[4] !== PROFILE_PICTURE_PREFIX ||
+    !parts[1] ||
+    !parts[3] ||
+    !PROFILE_PICTURE_FILENAME_PATTERN.test(parts[5])
   ) {
     throw new AppError(
       400,
-      "Storage key is invalid.",
+      "The profile-picture storage key is invalid.",
       "PROFILE_PICTURE_STORAGE_KEY_INVALID",
     );
   }
 
-  /**
-   * Reject path traversal, malformed separators and control characters.
-   */
-  if (
-    key.includes("\\") ||
-    key.includes("\0") ||
-    /[\u0000-\u001F\u007F]/.test(
-      key,
-    ) ||
-    key.includes("//") ||
-    key.includes("/./") ||
-    key.includes("/../") ||
-    key.startsWith("../") ||
-    key.startsWith("/") ||
-    key.endsWith("/")
-  ) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
-
-  const parts =
-    key.split("/");
-
-  /**
-   * Exact structure:
-   *
-   * 0 organizations
-   * 1 organization ID
-   * 2 employees
-   * 3 employee ID
-   * 4 profile-pictures
-   * 5 UUID.jpg
-   */
-  if (
-    parts.length !== 6
-  ) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
-
-  const [
-    organizationsSegment,
-
-    organizationId,
-
-    employeesSegment,
-
-    employeeId,
-
-    profilePicturesSegment,
-
-    filename,
-  ] = parts;
-
-  if (
-    organizationsSegment !==
-      "organizations" ||
-    employeesSegment !==
-      "employees" ||
-    profilePicturesSegment !==
-      PROFILE_PICTURE_PREFIX
-  ) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
-
-  if (
-    !organizationId ||
-    !employeeId
-  ) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
-
-  /**
-   * Object filenames must be server-generated UUIDs with the normalized
-   * JPEG extension.
-   */
-  if (
-    !PROFILE_PICTURE_FILENAME_PATTERN.test(
-      filename,
-    )
-  ) {
-    throw new AppError(
-      400,
-      "Storage key is invalid.",
-      "PROFILE_PICTURE_STORAGE_KEY_INVALID",
-    );
-  }
-
-  return key;
+  return storageKey;
 }
 
-/**
- * ============================================================================
- * UPLOAD
- * ============================================================================
- */
+/* -------------------------------------------------------------------------- */
+/* Profile-picture validation and processing                                  */
+/* -------------------------------------------------------------------------- */
+
+async function validateProfilePicture(
+  buffer: Buffer,
+): Promise<{ width: number; height: number }> {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    throw new AppError(
+      400,
+      "An image file is required.",
+      "PROFILE_PICTURE_FILE_INVALID",
+    );
+  }
+
+  if (buffer.length > MAX_PROFILE_PICTURE_BYTES) {
+    throw new AppError(
+      413,
+      "Profile pictures must not exceed 5 MB.",
+      "PROFILE_PICTURE_TOO_LARGE",
+    );
+  }
+
+  const detected = await fileTypeFromBuffer(buffer);
+
+  if (!detected || !ALLOWED_PROFILE_PICTURE_TYPES.has(detected.mime)) {
+    throw new AppError(
+      415,
+      "Only JPEG, PNG, and WebP profile pictures are supported.",
+      "PROFILE_PICTURE_FORMAT_UNSUPPORTED",
+    );
+  }
+
+  let metadata: import("sharp").Metadata;
+
+  try {
+    metadata = await sharp(buffer, {
+      limitInputPixels: MAX_IMAGE_PIXELS,
+      failOn: "warning",
+      sequentialRead: true,
+    }).metadata();
+  } catch {
+    throw new AppError(
+      400,
+      "The uploaded image could not be decoded.",
+      "PROFILE_PICTURE_IMAGE_INVALID",
+    );
+  }
+
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > MAX_IMAGE_WIDTH ||
+    height > MAX_IMAGE_HEIGHT ||
+    width * height > MAX_IMAGE_PIXELS
+  ) {
+    throw new AppError(
+      413,
+      "The image dimensions exceed the permitted limits.",
+      "PROFILE_PICTURE_DIMENSIONS_INVALID",
+    );
+  }
+
+  return { width, height };
+}
+
+async function normalizeProfilePicture(
+  buffer: Buffer,
+): Promise<{ buffer: Buffer; width: number; height: number }> {
+  await validateProfilePicture(buffer);
+
+  let normalized: Buffer;
+
+  try {
+    normalized = await sharp(buffer, {
+      limitInputPixels: MAX_IMAGE_PIXELS,
+      failOn: "warning",
+      sequentialRead: true,
+    })
+      .rotate()
+      .resize({
+        width: MAX_IMAGE_WIDTH,
+        height: MAX_IMAGE_HEIGHT,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: 88,
+        progressive: true,
+        mozjpeg: true,
+      })
+      .toBuffer();
+  } catch {
+    throw new AppError(
+      400,
+      "The uploaded profile picture could not be processed.",
+      "PROFILE_PICTURE_PROCESSING_FAILED",
+    );
+  }
+
+  if (
+    normalized.length === 0 ||
+    normalized.length > MAX_NORMALIZED_PROFILE_PICTURE_BYTES
+  ) {
+    throw new AppError(
+      413,
+      "The processed profile picture is too large.",
+      "PROFILE_PICTURE_TOO_LARGE",
+    );
+  }
+
+  const detected = await fileTypeFromBuffer(normalized);
+
+  if (!detected || detected.mime !== STORED_PROFILE_PICTURE_MIME) {
+    throw new AppError(
+      500,
+      "The processed profile picture failed verification.",
+      "PROFILE_PICTURE_VERIFICATION_FAILED",
+    );
+  }
+
+  const metadata = await sharp(normalized, {
+    limitInputPixels: MAX_IMAGE_PIXELS,
+  }).metadata();
+
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+
+  if (
+    width <= 0 ||
+    height <= 0 ||
+    width > MAX_IMAGE_WIDTH ||
+    height > MAX_IMAGE_HEIGHT ||
+    width * height > MAX_IMAGE_PIXELS
+  ) {
+    throw new AppError(
+      500,
+      "The processed profile picture has invalid dimensions.",
+      "PROFILE_PICTURE_DIMENSIONS_INVALID",
+    );
+  }
+
+  return { buffer: normalized, width, height };
+}
+/* -------------------------------------------------------------------------- */
+/* Upload profile picture                                                     */
+/* -------------------------------------------------------------------------- */
 
 export async function uploadProfilePicture(
   input: ProfilePictureUploadInput,
 ): Promise<ProfilePictureUploadResult> {
-  const organizationId =
-    assertNonEmptyIdentifier(
-      input.organizationId,
-      "organizationId",
-    );
+  const organizationId = assertNonEmptyIdentifier(
+    input.organizationId,
+    "organizationId",
+  );
 
-  const employeeId =
-    assertNonEmptyIdentifier(
-      input.employeeId,
-      "employeeId",
-    );
+  const employeeId = assertNonEmptyIdentifier(
+    input.employeeId,
+    "employeeId",
+  );
 
-  const originalName =
-    sanitizeOriginalName(
-      input.originalName,
-    );
+  const normalized = await normalizeProfilePicture(input.buffer);
+  const sha256 = calculateSha256(normalized.buffer);
+  const storageKey = createProfilePictureStorageKey(
+    organizationId,
+    employeeId,
+  );
 
-  /**
-   * The browser-declared MIME type is intentionally ignored.
-   *
-   * Actual binary inspection occurs inside validateImageBuffer().
-   */
-  void input.declaredMimeType;
-
-  /**
-   * Decode, validate, normalize and verify the image before uploading it.
-   */
-  const normalized =
-    await normalizeProfileImage(
-      input.buffer,
-    );
-
-  /**
-   * Hash the exact normalized bytes that will be stored.
-   */
-  const sha256 =
-    calculateSha256(
-      normalized.buffer,
-    );
-
-  /**
-   * Generate a server-controlled storage key.
-   */
-  const storageKey =
-    createProfilePictureStorageKey(
-      organizationId,
-      employeeId,
-    );
-
-  const {
-    client,
-
-    bucket,
-  } =
-    createStorageContext();
+  const { client, bucket } = createStorageContext();
 
   try {
     await client.send(
       new PutObjectCommand({
-        Bucket:
-          bucket,
-
-        Key:
-          storageKey,
-
-        Body:
-          normalized.buffer,
-
-        ContentType:
-          STORED_MIME_TYPE,
-
-        ContentLength:
-          normalized.buffer.length,
-
-        CacheControl:
-          PRIVATE_CACHE_CONTROL,
-
-        /**
-         * Keep only metadata required for operational verification.
-         */
+        Bucket: bucket,
+        Key: storageKey,
+        Body: normalized.buffer,
+        ContentLength: normalized.buffer.length,
+        ContentType: STORED_PROFILE_PICTURE_MIME,
+        ContentDisposition: 'inline; filename="profile-picture.jpg"',
+        CacheControl: PRIVATE_CACHE_CONTROL,
+        ServerSideEncryption: "AES256",
+        ChecksumSHA256: Buffer.from(sha256, "hex").toString("base64"),
         Metadata: {
-          organizationid:
-            organizationId,
-
-          employeeid:
-            employeeId,
-
+          purpose: "profile-picture",
+          organizationid: organizationId,
+          employeeid: employeeId,
           sha256,
         },
-
-        /**
-         * Server-side encryption.
-         */
-        ServerSideEncryption:
-          "AES256",
-
-        /**
-         * Integrity protection.
-         *
-         * AWS expects the SHA-256 digest in base64 representation.
-         */
-        ChecksumSHA256:
-          Buffer.from(
-            sha256,
-            "hex",
-          ).toString(
-            "base64",
-          ),
       }),
     );
-  } catch (error) {
-    /**
-     * Never expose raw AWS/S3 errors to the client.
-     */
-    console.error(
-      "Failed to upload profile picture to private object storage.",
-      {
-        error,
-
-        organizationId,
-
-        employeeId,
-      },
-    );
-
+  } catch {
     throw new AppError(
-      503,
-      "Profile picture could not be stored.",
-      "PROFILE_PICTURE_STORAGE_UPLOAD_FAILED",
+      502,
+      "The profile picture could not be stored.",
+      "PROFILE_PICTURE_UPLOAD_FAILED",
     );
+  } finally {
+    client.destroy();
   }
 
   return {
     storageKey,
-
-    originalName,
-
-    mimeType:
-      STORED_MIME_TYPE,
-
-    sizeBytes:
-      normalized.buffer.length,
-
+    originalName: sanitizeOriginalName(input.originalName),
+    mimeType: STORED_PROFILE_PICTURE_MIME,
+    sizeBytes: normalized.buffer.length,
     sha256,
-
-    width:
-      normalized.width,
-
-    height:
-      normalized.height,
+    width: normalized.width,
+    height: normalized.height,
   };
 }
 
-/**
- * ============================================================================
- * PRIVATE OBJECT DOWNLOAD
- * ============================================================================
- *
- * Authorization MUST already have happened in profile-picture.service.ts.
- *
- * This function is not a public authorization boundary.
- */
-export async function downloadPrivateObject(
-  storageKey: string,
-): Promise<{
-  body: NonNullable<
-    GetObjectCommandOutput["Body"]
-  >;
+/* -------------------------------------------------------------------------- */
+/* Bounded object stream reader                                               */
+/* -------------------------------------------------------------------------- */
 
-  contentType?: string;
-
-  contentLength?: number;
-}> {
-  const key =
-    assertProfilePictureStorageKey(
-      storageKey,
+async function streamToBuffer(
+  output: GetObjectCommandOutput,
+  maximumBytes: number,
+): Promise<Buffer> {
+  if (!output.Body) {
+    throw new AppError(
+      404,
+      "The stored file was not found.",
+      "STORAGE_OBJECT_NOT_FOUND",
     );
+  }
 
-  const {
-    client,
-
-    bucket,
-  } =
-    createStorageContext();
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
 
   try {
-    const result =
-      await client.send(
-        new GetObjectCommand({
-          Bucket:
-            bucket,
+    for await (const chunk of output.Body as AsyncIterable<
+      Uint8Array | Buffer | string
+    >) {
+      const part = Buffer.isBuffer(chunk)
+        ? chunk
+        : Buffer.from(chunk);
 
-          Key:
-            key,
-        }),
-      );
+      totalBytes += part.length;
 
-    if (
-      !result.Body
-    ) {
-      throw new AppError(
-        404,
-        "Stored profile picture was not found.",
-        "PROFILE_PICTURE_OBJECT_NOT_FOUND",
-      );
+      if (totalBytes > maximumBytes) {
+        throw new AppError(
+          413,
+          "The stored file exceeds the permitted size.",
+          "STORAGE_OBJECT_TOO_LARGE",
+        );
+      }
+
+      chunks.push(part);
+    }
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
     }
 
-    /**
-     * Only normalized JPEG profile pictures are allowed to leave storage.
-     */
+    throw new AppError(
+      502,
+      "The stored file could not be read.",
+      "STORAGE_OBJECT_READ_FAILED",
+    );
+  }
+
+  return Buffer.concat(chunks, totalBytes);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Download profile picture                                                  */
+/* -------------------------------------------------------------------------- */
+
+export async function downloadPrivateObject(
+  storageKey: string,
+): Promise<PrivateObjectDownload> {
+  const key = assertProfilePictureStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
+
+  try {
+    const output = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
+
     if (
-      result.ContentType &&
-      result.ContentType !==
-        STORED_MIME_TYPE
-    ) {
-      console.error(
-        "Stored profile picture has unexpected content type.",
-        {
-          key,
-
-          contentType:
-            result.ContentType,
-        },
-      );
-
-      throw new AppError(
-        500,
-        "Stored profile picture failed integrity validation.",
-        "PROFILE_PICTURE_OBJECT_INVALID",
-      );
-    }
-
-    /**
-     * Never stream an unexpectedly large object.
-     */
-    if (
-      typeof result.ContentLength ===
-        "number" &&
+      typeof output.ContentLength === "number" &&
       (
-        result.ContentLength <= 0 ||
-        result.ContentLength >
-          MAX_NORMALIZED_PROFILE_PICTURE_BYTES
+        output.ContentLength < 0 ||
+        output.ContentLength > MAX_NORMALIZED_PROFILE_PICTURE_BYTES
       )
     ) {
-      console.error(
-        "Stored profile picture has invalid size.",
-        {
-          key,
-
-          contentLength:
-            result.ContentLength,
-        },
-      );
-
       throw new AppError(
-        500,
-        "Stored profile picture failed integrity validation.",
-        "PROFILE_PICTURE_OBJECT_INVALID",
+        502,
+        "The stored profile picture has an invalid size.",
+        "STORAGE_OBJECT_SIZE_INVALID",
+      );
+    }
+
+    if (
+      output.ContentType &&
+      output.ContentType.toLowerCase() !== STORED_PROFILE_PICTURE_MIME
+    ) {
+      throw new AppError(
+        502,
+        "The stored profile picture has an invalid content type.",
+        "STORAGE_OBJECT_TYPE_INVALID",
+      );
+    }
+
+    const body = await streamToBuffer(
+      output,
+      MAX_NORMALIZED_PROFILE_PICTURE_BYTES,
+    );
+
+    const detected = await fileTypeFromBuffer(body);
+
+    if (!detected || detected.mime !== STORED_PROFILE_PICTURE_MIME) {
+      throw new AppError(
+        502,
+        "The stored profile picture failed format verification.",
+        "STORAGE_OBJECT_TYPE_INVALID",
+      );
+    }
+
+    const expectedSha256 = output.Metadata?.sha256;
+
+    if (
+      expectedSha256 &&
+      !verifySha256(expectedSha256, calculateSha256(body))
+    ) {
+      throw new AppError(
+        502,
+        "The stored profile picture failed integrity verification.",
+        "STORAGE_OBJECT_INTEGRITY_FAILED",
       );
     }
 
     return {
-      body:
-        result.Body,
-
-      contentType:
-        result.ContentType,
-
-      contentLength:
-        result.ContentLength,
+      body,
+      contentType: STORED_PROFILE_PICTURE_MIME,
+      contentLength: body.length,
+      metadata: output.Metadata,
+      etag: output.ETag,
     };
   } catch (error) {
-    if (
-      error instanceof
-      AppError
-    ) {
+    if (error instanceof AppError) {
       throw error;
     }
 
-    console.error(
-      "Failed to retrieve private profile picture.",
-      {
-        error,
-
-        key,
-      },
-    );
+    if (isNotFound(error)) {
+      throw new AppError(
+        404,
+        "The profile picture was not found.",
+        "STORAGE_OBJECT_NOT_FOUND",
+      );
+    }
 
     throw new AppError(
-      503,
-      "Stored profile picture could not be retrieved.",
-      "PROFILE_PICTURE_STORAGE_READ_FAILED",
+      502,
+      "The profile picture could not be retrieved.",
+      "PROFILE_PICTURE_DOWNLOAD_FAILED",
     );
+  } finally {
+    client.destroy();
   }
 }
 
-/**
- * ============================================================================
- * OBJECT EXISTENCE
- * ============================================================================
- *
- * Returns false only for an actual S3 404.
- *
- * Network, credentials and provider failures remain errors.
- */
+/* -------------------------------------------------------------------------- */
+/* Check profile-picture existence                                            */
+/* -------------------------------------------------------------------------- */
+
 export async function objectExists(
   storageKey: string,
 ): Promise<boolean> {
-  const key =
-    assertProfilePictureStorageKey(
-      storageKey,
-    );
-
-  const {
-    client,
-
-    bucket,
-  } =
-    createStorageContext();
+  const key = assertProfilePictureStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
 
   try {
     await client.send(
       new HeadObjectCommand({
-        Bucket:
-          bucket,
-
-        Key:
-          key,
+        Bucket: bucket,
+        Key: key,
       }),
     );
 
     return true;
   } catch (error) {
-    const statusCode =
-      typeof error === "object" &&
-      error !== null &&
-      "$metadata" in error
-        ? (
-            error as {
-              $metadata?: {
-                httpStatusCode?: number;
-              };
-            }
-          ).$metadata
-            ?.httpStatusCode
-        : undefined;
-
-    if (
-      statusCode === 404
-    ) {
+    if (isNotFound(error)) {
       return false;
     }
 
-    console.error(
-      "Failed to check profile picture object existence.",
-      {
-        error,
-
-        key,
-      },
-    );
-
     throw new AppError(
-      503,
-      "Profile picture storage could not be checked.",
-      "PROFILE_PICTURE_STORAGE_CHECK_FAILED",
+      502,
+      "The profile picture could not be checked.",
+      "STORAGE_OBJECT_CHECK_FAILED",
     );
+  } finally {
+    client.destroy();
   }
 }
 
-/**
- * ============================================================================
- * VERIFY STORED OBJECT
- * ============================================================================
- *
- * Reads object metadata without downloading the object body.
- */
+/* -------------------------------------------------------------------------- */
+/* Verify profile-picture metadata                                            */
+/* -------------------------------------------------------------------------- */
+
 export async function verifyStoredObject(
   storageKey: string,
-): Promise<{
-  contentType?: string;
-
-  contentLength?: number;
-
-  metadata: Record<
-    string,
-    string
-  >;
-}> {
-  const key =
-    assertProfilePictureStorageKey(
-      storageKey,
-    );
-
-  const {
-    client,
-
-    bucket,
-  } =
-    createStorageContext();
+): Promise<StoredObjectVerification> {
+  const key = assertProfilePictureStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
 
   try {
-    const result =
-      await client.send(
-        new HeadObjectCommand({
-          Bucket:
-            bucket,
+    const output = await client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
 
-          Key:
-            key,
-        }),
-      );
+    const contentLength = output.ContentLength;
 
     if (
-      result.ContentType &&
-      result.ContentType !==
-        STORED_MIME_TYPE
+      typeof contentLength === "number" &&
+      (
+        contentLength < 0 ||
+        contentLength > MAX_NORMALIZED_PROFILE_PICTURE_BYTES
+      )
     ) {
       throw new AppError(
-        500,
-        "Stored profile picture has an invalid content type.",
-        "PROFILE_PICTURE_OBJECT_INVALID",
+        502,
+        "The stored profile picture has an invalid size.",
+        "STORAGE_OBJECT_SIZE_INVALID",
       );
     }
 
     if (
-      typeof result.ContentLength ===
-        "number" &&
-      (
-        result.ContentLength <= 0 ||
-        result.ContentLength >
-          MAX_NORMALIZED_PROFILE_PICTURE_BYTES
-      )
+      output.ContentType &&
+      output.ContentType.toLowerCase() !== STORED_PROFILE_PICTURE_MIME
     ) {
       throw new AppError(
-        500,
-        "Stored profile picture has an invalid size.",
-        "PROFILE_PICTURE_OBJECT_INVALID",
+        502,
+        "The stored profile picture has an invalid content type.",
+        "STORAGE_OBJECT_TYPE_INVALID",
       );
     }
 
     return {
-      contentType:
-        result.ContentType,
-
-      contentLength:
-        result.ContentLength,
-
-      metadata:
-        result.Metadata ??
-        {},
+      exists: true,
+      contentType: output.ContentType,
+      contentLength,
+      sha256: output.Metadata?.sha256,
+      etag: output.ETag,
     };
   } catch (error) {
-    if (
-      error instanceof
-      AppError
-    ) {
+    if (error instanceof AppError) {
       throw error;
     }
 
-    console.error(
-      "Failed to verify stored profile picture.",
-      {
-        error,
-
-        key,
-      },
-    );
+    if (isNotFound(error)) {
+      return { exists: false };
+    }
 
     throw new AppError(
-      503,
-      "Stored profile picture could not be verified.",
-      "PROFILE_PICTURE_STORAGE_VERIFY_FAILED",
+      502,
+      "The profile picture could not be verified.",
+      "STORAGE_OBJECT_VERIFY_FAILED",
     );
+  } finally {
+    client.destroy();
   }
 }
 
-/**
- * ============================================================================
- * DELETE PRIVATE OBJECT
- * ============================================================================
- *
- * Deletes only objects belonging to the profile-picture namespace.
- */
+/* -------------------------------------------------------------------------- */
+/* Delete profile picture                                                     */
+/* -------------------------------------------------------------------------- */
+
 export async function deletePrivateObject(
   storageKey: string,
 ): Promise<void> {
-  const key =
-    assertProfilePictureStorageKey(
-      storageKey,
-    );
-
-  const {
-    client,
-
-    bucket,
-  } =
-    createStorageContext();
+  const key = assertProfilePictureStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
 
   try {
     await client.send(
       new DeleteObjectCommand({
-        Bucket:
-          bucket,
-
-        Key:
-          key,
+        Bucket: bucket,
+        Key: key,
       }),
     );
-  } catch (error) {
-    console.error(
-      "Failed to delete private profile picture.",
-      {
-        error,
-
-        key,
-      },
+  } catch {
+    throw new AppError(
+      502,
+      "The profile picture could not be deleted.",
+      "PROFILE_PICTURE_DELETE_FAILED",
     );
+  } finally {
+    client.destroy();
+  }
+}
+
+export async function safelyDeleteObject(
+  storageKey: string,
+): Promise<boolean> {
+  try {
+    await deletePrivateObject(storageKey);
+    return true;
+  } catch (error) {
+    console.error("Profile-picture cleanup failed.", {
+      error,
+      storageKey,
+    });
+
+    return false;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Onboarding document storage-key validation                                 */
+/* -------------------------------------------------------------------------- */
+
+function assertOnboardingDocumentType(
+  value: string,
+): OnboardingDocumentType {
+  if (
+    !ONBOARDING_DOCUMENT_TYPES.includes(
+      value as OnboardingDocumentType,
+    )
+  ) {
+    throw new AppError(
+      400,
+      "The onboarding document type is invalid.",
+      "ONBOARDING_DOCUMENT_TYPE_INVALID",
+    );
+  }
+
+  return value as OnboardingDocumentType;
+}
+
+function createOnboardingDocumentStorageKey(
+  organizationId: string,
+  employeeId: string,
+  documentType: OnboardingDocumentType,
+): string {
+  return [
+    "organizations",
+    encodeURIComponent(
+      assertNonEmptyIdentifier(organizationId, "organizationId"),
+    ),
+    "employees",
+    encodeURIComponent(
+      assertNonEmptyIdentifier(employeeId, "employeeId"),
+    ),
+    ONBOARDING_DOCUMENT_PREFIX,
+    assertOnboardingDocumentType(documentType).toLowerCase(),
+    randomUUID(),
+  ].join("/");
+}
+
+function assertOnboardingDocumentStorageKey(
+  storageKey: string,
+): string {
+  if (
+    typeof storageKey !== "string" ||
+    storageKey.length === 0 ||
+    storageKey.length > 1024 ||
+    storageKey.startsWith("/") ||
+    storageKey.endsWith("/") ||
+    storageKey.includes("\\") ||
+    storageKey.includes("//") ||
+    /[\u0000-\u001F\u007F]/.test(storageKey)
+  ) {
+    throw new AppError(
+      400,
+      "The onboarding document storage key is invalid.",
+      "ONBOARDING_DOCUMENT_STORAGE_KEY_INVALID",
+    );
+  }
+
+  const parts = storageKey.split("/");
+
+  if (
+    parts.length !== 7 ||
+    parts[0] !== "organizations" ||
+    parts[2] !== "employees" ||
+    parts[4] !== ONBOARDING_DOCUMENT_PREFIX ||
+    parts.some((part) => !part || part === "." || part === "..")
+  ) {
+    throw new AppError(
+      400,
+      "The onboarding document storage key is invalid.",
+      "ONBOARDING_DOCUMENT_STORAGE_KEY_INVALID",
+    );
+  }
+
+  let organizationId: string;
+  let employeeId: string;
+
+  try {
+    organizationId = decodeURIComponent(parts[1]);
+    employeeId = decodeURIComponent(parts[3]);
+  } catch {
+    throw new AppError(
+      400,
+      "The onboarding document storage key is invalid.",
+      "ONBOARDING_DOCUMENT_STORAGE_KEY_INVALID",
+    );
+  }
+
+  assertNonEmptyIdentifier(organizationId, "organizationId");
+  assertNonEmptyIdentifier(employeeId, "employeeId");
+
+  const validFolders = ONBOARDING_DOCUMENT_TYPES.map((type) =>
+    type.toLowerCase(),
+  );
+
+  if (
+    !validFolders.includes(parts[5]) ||
+    !UUID_PATTERN.test(parts[6])
+  ) {
+    throw new AppError(
+      400,
+      "The onboarding document storage key is invalid.",
+      "ONBOARDING_DOCUMENT_STORAGE_KEY_INVALID",
+    );
+  }
+
+  return storageKey;
+}
+/* -------------------------------------------------------------------------- */
+/* Validate onboarding document                                               */
+/* -------------------------------------------------------------------------- */
+
+async function validateOnboardingDocument(
+  buffer: Buffer,
+): Promise<OnboardingDocumentMimeType> {
+  if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+    throw new AppError(
+      400,
+      "An onboarding document is required.",
+      "ONBOARDING_DOCUMENT_INVALID",
+    );
+  }
+
+  if (buffer.length > MAX_ONBOARDING_DOCUMENT_BYTES) {
+    throw new AppError(
+      413,
+      "Onboarding documents must not exceed 10 MB.",
+      "ONBOARDING_DOCUMENT_TOO_LARGE",
+    );
+  }
+
+  let detected: Awaited<ReturnType<typeof fileTypeFromBuffer>>;
+
+  try {
+    detected = await fileTypeFromBuffer(buffer);
+  } catch {
+    throw new AppError(
+      415,
+      "The document format could not be verified.",
+      "ONBOARDING_DOCUMENT_FORMAT_UNKNOWN",
+    );
+  }
+
+  if (
+    !detected ||
+    !ALLOWED_ONBOARDING_DOCUMENT_TYPES.has(detected.mime)
+  ) {
+    throw new AppError(
+      415,
+      "Only PDF, JPEG, and PNG onboarding documents are supported.",
+      "ONBOARDING_DOCUMENT_FORMAT_UNSUPPORTED",
+    );
+  }
+
+  return detected.mime as OnboardingDocumentMimeType;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Upload onboarding document                                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function uploadOnboardingDocument(
+  input: OnboardingDocumentUploadInput,
+): Promise<OnboardingDocumentUploadResult> {
+  const organizationId = assertNonEmptyIdentifier(
+    input.organizationId,
+    "organizationId",
+  );
+
+  const employeeId = assertNonEmptyIdentifier(
+    input.employeeId,
+    "employeeId",
+  );
+
+  const documentType = assertOnboardingDocumentType(input.documentType);
+  const mimeType = await validateOnboardingDocument(input.buffer);
+  const originalName = sanitizeOriginalName(input.originalName);
+  const sha256 = calculateSha256(input.buffer);
+
+  const storageKey = createOnboardingDocumentStorageKey(
+    organizationId,
+    employeeId,
+    documentType,
+  );
+
+  const { client, bucket } = createStorageContext();
+
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: storageKey,
+        Body: input.buffer,
+        ContentLength: input.buffer.length,
+        ContentType: mimeType,
+        ContentDisposition: "attachment",
+        CacheControl: PRIVATE_CACHE_CONTROL,
+        ServerSideEncryption: "AES256",
+        ChecksumSHA256: Buffer.from(sha256, "hex").toString("base64"),
+        Metadata: {
+          purpose: "onboarding-document",
+          organizationid: organizationId,
+          employeeid: employeeId,
+          documenttype: documentType,
+          sha256,
+        },
+      }),
+    );
+  } catch {
+    throw new AppError(
+      502,
+      "The onboarding document could not be stored.",
+      "ONBOARDING_DOCUMENT_UPLOAD_FAILED",
+    );
+  } finally {
+    client.destroy();
+  }
+
+  return {
+    storageKey,
+    originalName,
+    mimeType,
+    sizeBytes: input.buffer.length,
+    sha256,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Download onboarding document                                               */
+/* -------------------------------------------------------------------------- */
+
+export async function downloadOnboardingDocument(
+  storageKey: string,
+): Promise<OnboardingDocumentDownloadResult> {
+  const key = assertOnboardingDocumentStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
+
+  try {
+    const output = await client.send(
+      new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
+
+    if (
+      typeof output.ContentLength !== "number" ||
+      !Number.isSafeInteger(output.ContentLength) ||
+      output.ContentLength <= 0 ||
+      output.ContentLength > MAX_ONBOARDING_DOCUMENT_BYTES
+    ) {
+      throw new AppError(
+        502,
+        "The stored onboarding document has an invalid size.",
+        "ONBOARDING_DOCUMENT_SIZE_INVALID",
+      );
+    }
+
+    const parts = key.split("/");
+    const keyOrganizationId = decodeURIComponent(parts[1]);
+    const keyEmployeeId = decodeURIComponent(parts[3]);
+    const keyDocumentType = parts[5].toUpperCase().replace(/-/g, "_");
+
+    /*
+     * Verify that the object's metadata agrees with its storage key.
+     * Authorization still belongs in the route/service that calls this
+     * function; matching metadata does not establish user permissions.
+     */
+    if (
+      output.Metadata?.purpose !== "onboarding-document" ||
+      output.Metadata?.organizationid !== keyOrganizationId ||
+      output.Metadata?.employeeid !== keyEmployeeId ||
+      output.Metadata?.documenttype !== keyDocumentType
+    ) {
+      throw new AppError(
+        502,
+        "The stored onboarding document failed ownership metadata verification.",
+        "ONBOARDING_DOCUMENT_METADATA_INVALID",
+      );
+    }
+
+    const contentType = output.ContentType;
+
+    if (
+      !contentType ||
+      !ALLOWED_ONBOARDING_DOCUMENT_TYPES.has(contentType)
+    ) {
+      throw new AppError(
+        502,
+        "The stored onboarding document has an invalid content type.",
+        "ONBOARDING_DOCUMENT_TYPE_INVALID",
+      );
+    }
+
+    const body = await streamToBuffer(
+      output,
+      MAX_ONBOARDING_DOCUMENT_BYTES,
+    );
+
+    if (body.length !== output.ContentLength) {
+      throw new AppError(
+        502,
+        "The stored onboarding document failed size verification.",
+        "ONBOARDING_DOCUMENT_SIZE_MISMATCH",
+      );
+    }
+
+    const detectedType = await fileTypeFromBuffer(body);
+
+    if (!detectedType || detectedType.mime !== contentType) {
+      throw new AppError(
+        502,
+        "The stored onboarding document failed format verification.",
+        "ONBOARDING_DOCUMENT_TYPE_MISMATCH",
+      );
+    }
+
+    const actualSha256 = calculateSha256(body);
+    const expectedSha256 = output.Metadata?.sha256;
+
+    if (
+      !expectedSha256 ||
+      !verifySha256(expectedSha256, actualSha256)
+    ) {
+      throw new AppError(
+        502,
+        "The stored onboarding document failed integrity verification.",
+        "ONBOARDING_DOCUMENT_INTEGRITY_FAILED",
+      );
+    }
+
+    return {
+      body,
+      contentType: contentType as OnboardingDocumentMimeType,
+      contentLength: body.length,
+      sha256: actualSha256,
+      etag: output.ETag,
+    };
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    if (isNotFound(error)) {
+      throw new AppError(
+        404,
+        "The onboarding document was not found.",
+        "ONBOARDING_DOCUMENT_NOT_FOUND",
+      );
+    }
 
     throw new AppError(
-      503,
-      "Stored profile picture could not be deleted.",
-      "PROFILE_PICTURE_STORAGE_DELETE_FAILED",
+      502,
+      "The onboarding document could not be retrieved.",
+      "ONBOARDING_DOCUMENT_DOWNLOAD_FAILED",
     );
+  } finally {
+    client.destroy();
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Delete onboarding document                                                 */
+/* -------------------------------------------------------------------------- */
+
+export async function deleteOnboardingDocumentObject(
+  storageKey: string,
+): Promise<void> {
+  const key = assertOnboardingDocumentStorageKey(storageKey);
+  const { client, bucket } = createStorageContext();
+
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      }),
+    );
+  } catch {
+    throw new AppError(
+      502,
+      "The onboarding document could not be deleted.",
+      "ONBOARDING_DOCUMENT_DELETE_FAILED",
+    );
+  } finally {
+    client.destroy();
   }
 }
 
 /**
- * ============================================================================
- * BEST-EFFORT CLEANUP
- * ============================================================================
+ * Best-effort cleanup for failed workflows.
  *
- * Used when:
- *
- * 1. object upload succeeds
- * 2. database transaction fails
- *
- * The database remains authoritative.
- *
- * This function attempts to remove the orphaned object without replacing the
- * original database/transaction error.
+ * A false result must be logged and, where appropriate, retried by a cleanup
+ * job. Do not silently treat failed cleanup as successful deletion.
  */
-export async function safelyDeleteObject(
+export async function safelyDeleteOnboardingDocumentObject(
   storageKey: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await deletePrivateObject(
-      storageKey,
-    );
+    await deleteOnboardingDocumentObject(storageKey);
+    return true;
   } catch (error) {
-    console.error(
-      "Best-effort profile-picture object cleanup failed.",
-      {
-        error,
+    console.error("Onboarding document cleanup failed.", {
+      error,
+      storageKey,
+    });
 
-        storageKey,
-      },
-    );
+    return false;
   }
 }

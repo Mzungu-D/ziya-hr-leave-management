@@ -33,6 +33,7 @@ enum NotificationType {
   LEAVE_REQUEST_REJECTED
   LEAVE_REQUEST_CANCELLED
   LEAVE_REQUEST_REVIEW_REQUIRED
+  ONBOARDING_SUBMITTED
   SYSTEM
 }
 
@@ -87,6 +88,14 @@ enum PolicyStatus {
   ARCHIVED
 }
 
+enum OnboardingStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  RETURNED
+  COMPLETED
+}
+
 enum SystemSettingType {
   STRING
   INTEGER
@@ -110,6 +119,7 @@ model Organization {
   settings     SystemSetting[]
   auditLogs    AuditLog[]
   notifications Notification[]
+  onboardingSubmissions OnboardingSubmission[]
 
   @@index([code])
 }
@@ -232,6 +242,12 @@ model Employee {
 
   // Notifications addressed to this employee.
   notifications Notification[] @relation("NotificationRecipient")
+
+  // Employee's own onboarding submission.
+  onboardingSubmission OnboardingSubmission? @relation("OnboardingOwner")
+
+  // Onboarding submissions reviewed by this HR user.
+  reviewedOnboardingSubmissions OnboardingSubmission[] @relation("OnboardingReviewer")
 
   // Employee IDs must be unique within an organization.
   @@unique([organizationId, employeeId])
@@ -653,4 +669,52 @@ model Notification {
   // Efficient tenant-scoped notification feeds and unread counts.
   @@index([organizationId, recipientId, createdAt])
   @@index([organizationId, recipientId, readAt])
+}
+
+model OnboardingSubmission {
+  id             String           @id @default(uuid())
+  organizationId String
+  employeeId     String           @unique
+  status         OnboardingStatus @default(DRAFT)
+
+  // Employee-provided onboarding information.
+  employeeData Json?
+
+  // Required employee consent records and signature information.
+  consentData Json?
+
+  // HR-only verification, employment details and final sign-off.
+  hrData Json?
+
+  submittedAt  TimestamptzString?
+  reviewedAt   TimestamptzString?
+  reviewedById String?
+  completedAt  TimestamptzString?
+
+  createdAt TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  organization Organization @relation(
+    fields: [organizationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  employee Employee @relation(
+    "OnboardingOwner",
+    fields: [employeeId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  reviewedBy Employee? @relation(
+    "OnboardingReviewer",
+    fields: [reviewedById],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  @@unique([organizationId, employeeId])
+  @@index([organizationId, status, submittedAt], map: "onboard_org_status_submitted_idx")
+  @@index([organizationId, reviewedById], map: "onboard_org_reviewer_idx")
 }

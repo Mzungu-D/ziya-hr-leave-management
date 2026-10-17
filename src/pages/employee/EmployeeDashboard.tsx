@@ -8,14 +8,20 @@ import {
   Info,
   PlaneTakeoff,
   Plus,
-  UserRound,
+  RefreshCw,
   WalletCards,
+  XCircle,
 } from "lucide-react";
-import type {
-  LucideIcon,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import {
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -63,11 +69,7 @@ export interface EmployeeDashboardEvent {
   title: string;
   date: string;
   description?: string;
-  type:
-    | "HOLIDAY"
-    | "LEAVE"
-    | "ANNOUNCEMENT"
-    | "OTHER";
+  type: "HOLIDAY" | "LEAVE" | "ANNOUNCEMENT" | "OTHER";
 }
 
 export interface EmployeeDashboardNotification {
@@ -103,7 +105,7 @@ interface EmployeeDashboardProps {
    Constants
 ============================================================ */
 
-const defaultDashboardData: EmployeeDashboardData = {
+const EMPTY_DASHBOARD_DATA: EmployeeDashboardData = {
   leaveBalances: [],
   recentLeaveRequests: [],
   upcomingLeave: [],
@@ -111,17 +113,39 @@ const defaultDashboardData: EmployeeDashboardData = {
   notifications: [],
 };
 
+const CHART_COLORS = [
+  "#C49A45",
+  "#0F766E",
+  "#64748B",
+  "#7C3AED",
+  "#0284C7",
+  "#D97706",
+  "#DB2777",
+  "#475569",
+];
+
+const STATUS_STYLES: Record<
+  EmployeeLeaveRequestStatus,
+  string
+> = {
+  PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
+  APPROVED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  REJECTED: "bg-red-50 text-red-700 ring-red-200",
+  CANCELLED: "bg-slate-100 text-slate-600 ring-slate-200",
+};
+
 /* ============================================================
    Helpers
 ============================================================ */
 
-function formatDate(
-  value: string,
-  options?: Intl.DateTimeFormatOptions,
-): string {
-  const date = new Date(value);
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-KE", {
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
+}
 
-  if (Number.isNaN(date.getTime())) {
+function formatDate(value: string): string {
+  if (!value || Number.isNaN(Date.parse(value))) {
     return "Date unavailable";
   }
 
@@ -129,118 +153,62 @@ function formatDate(
     day: "numeric",
     month: "short",
     year: "numeric",
-    ...options,
-  }).format(date);
+  }).format(new Date(value));
 }
 
-function formatRelativeTime(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Recently";
+function formatShortDate(value: string): string {
+  if (!value || Number.isNaN(Date.parse(value))) {
+    return "—";
   }
 
-  const now = Date.now();
-  const difference = now - date.getTime();
-
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (difference < minute) {
-    return "Just now";
-  }
-
-  if (difference < hour) {
-    const minutes = Math.floor(difference / minute);
-
-    return `${minutes}m ago`;
-  }
-
-  if (difference < day) {
-    const hours = Math.floor(difference / hour);
-
-    return `${hours}h ago`;
-  }
-
-  if (difference < 7 * day) {
-    const days = Math.floor(difference / day);
-
-    return `${days}d ago`;
-  }
-
-  return formatDate(value, {
+  return new Intl.DateTimeFormat("en-KE", {
     day: "numeric",
     month: "short",
-  });
+  }).format(new Date(value));
 }
 
-function getInitials(
-  firstName?: string,
-  lastName?: string,
-): string {
-  const initials =
-    `${firstName?.trim().charAt(0) ?? ""}${
-      lastName?.trim().charAt(0) ?? ""
-    }`.toUpperCase();
+function formatDateRange(startDate: string, endDate: string): string {
+  if (startDate === endDate) {
+    return formatDate(startDate);
+  }
 
-  return initials || "U";
+  return `${formatShortDate(startDate)} – ${formatDate(endDate)}`;
 }
 
-function getStatusLabel(
-  status: EmployeeLeaveRequestStatus,
-): string {
+function getGreeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+
+  return "Good evening";
+}
+
+function getDisplayStatus(status: EmployeeLeaveRequestStatus): string {
   switch (status) {
+    case "PENDING":
+      return "Pending approval";
     case "APPROVED":
       return "Approved";
-
     case "REJECTED":
       return "Rejected";
-
     case "CANCELLED":
       return "Cancelled";
-
-    case "PENDING":
-    default:
-      return "Pending";
   }
 }
 
-function getStatusClasses(
+function getStatusIcon(
   status: EmployeeLeaveRequestStatus,
-): string {
+): LucideIcon {
   switch (status) {
     case "APPROVED":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-
+      return CheckCircle2;
     case "REJECTED":
-      return "border-red-200 bg-red-50 text-red-700";
-
+      return XCircle;
     case "CANCELLED":
-      return "border-slate-200 bg-slate-100 text-slate-600";
-
+      return XCircle;
     case "PENDING":
-    default:
-      return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-}
-
-function getEventIcon(
-  type: EmployeeDashboardEvent["type"],
-): LucideIcon {
-  switch (type) {
-    case "HOLIDAY":
-      return CalendarDays;
-
-    case "LEAVE":
-      return PlaneTakeoff;
-
-    case "ANNOUNCEMENT":
-      return Info;
-
-    case "OTHER":
-    default:
-      return CalendarDays;
+      return Clock3;
   }
 }
 
@@ -248,57 +216,48 @@ function getEventIcon(
    Reusable UI
 ============================================================ */
 
-interface SectionHeaderProps {
-  title: string;
-  description?: string;
-  actionLabel?: string;
-  actionHref?: string;
-}
-
-function SectionHeader({
+function SectionHeading({
   title,
   description,
-  actionLabel,
-  actionHref,
-}: SectionHeaderProps) {
+  action,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-5 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+        <h2 className="text-base font-semibold tracking-tight text-slate-900 sm:text-lg">
           {title}
         </h2>
 
         {description && (
-          <p className="mt-1 text-sm leading-6 text-slate-500">
+          <p className="mt-1 text-sm leading-5 text-slate-500">
             {description}
           </p>
         )}
       </div>
 
-      {actionLabel && actionHref && (
-        <Link
-          to={actionHref}
-          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-[#a47700] transition hover:text-[#7f5b00] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
-        >
-          {actionLabel}
-
-          <ArrowRight
-            size={15}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-        </Link>
-      )}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
 
-interface StatCardProps {
-  label: string;
-  value: string;
-  description: string;
-  icon: LucideIcon;
-  iconClassName: string;
+function Panel({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5 lg:p-6 ${className}`}
+    >
+      {children}
+    </section>
+  );
 }
 
 function DashboardStatCard({
@@ -306,35 +265,67 @@ function DashboardStatCard({
   value,
   description,
   icon: Icon,
-  iconClassName,
-}: StatCardProps) {
+  iconClassName = "bg-slate-100 text-slate-700",
+}: {
+  label: string;
+  value: string;
+  description: string;
+  icon: LucideIcon;
+  iconClassName?: string;
+}) {
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/40 sm:p-5">
+    <div className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+          <p className="break-words text-sm font-medium text-slate-500">
             {label}
           </p>
 
-          <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
             {value}
-          </p>
-
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            {description}
           </p>
         </div>
 
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
         >
-          <Icon
-            size={19}
-            strokeWidth={1.9}
-            aria-hidden="true"
-          />
+          <Icon size={20} aria-hidden="true" />
         </div>
       </div>
+
+      <p className="mt-2 break-words text-xs leading-5 text-slate-500 sm:text-sm">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 py-9 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+        <Icon size={21} aria-hidden="true" />
+      </div>
+
+      <h3 className="mt-3 text-sm font-semibold text-slate-800">
+        {title}
+      </h3>
+
+      <p className="mt-1 max-w-sm text-sm leading-6 text-slate-500">
+        {description}
+      </p>
+
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -352,177 +343,286 @@ function LoadingBlock({
   );
 }
 
-function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
+/* ============================================================
+   Leave Balance Doughnut Chart
+============================================================ */
+
+function LeaveBalanceChart({
+  balances,
 }: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  action?: ReactNode;
+  balances: EmployeeLeaveBalance[];
 }) {
+  const chartData = balances
+    .map((balance, index) => ({
+      id: balance.leaveTypeId,
+      name: balance.leaveTypeName,
+      value: Math.max(0, balance.remainingDays),
+      color:
+        balance.color || CHART_COLORS[index % CHART_COLORS.length],
+    }))
+    .filter((item) => item.value > 0);
+
+  const totalRemaining = balances.reduce(
+    (total, balance) => total + Math.max(0, balance.remainingDays),
+    0,
+  );
+
+  if (balances.length === 0) {
+    return (
+      <EmptyState
+        icon={WalletCards}
+        title="No leave balances available"
+        description="Your leave balance chart will appear when your leave records are available."
+      />
+    );
+  }
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex min-h-[250px] flex-col items-center justify-center text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+          <WalletCards size={22} aria-hidden="true" />
+        </div>
+
+        <h3 className="mt-3 text-sm font-semibold text-slate-800">
+          No remaining leave days
+        </h3>
+
+        <p className="mt-1 max-w-xs text-sm leading-6 text-slate-500">
+          Your current leave balances do not contain any remaining days.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-[180px] flex-col items-center justify-center px-5 py-8 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-        <Icon
-          size={20}
-          strokeWidth={1.8}
-          aria-hidden="true"
-        />
+    <div className="grid min-w-0 grid-cols-1 items-center gap-5 sm:grid-cols-[minmax(180px,0.9fr)_minmax(0,1fr)] sm:gap-6">
+      <div className="relative mx-auto h-[220px] w-full max-w-[280px] min-w-0 sm:h-[240px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius="65%"
+              outerRadius="88%"
+              paddingAngle={chartData.length > 1 ? 3 : 0}
+              stroke="none"
+              isAnimationActive={false}
+            >
+              {chartData.map((item) => (
+                <Cell key={item.id} fill={item.color} />
+              ))}
+            </Pie>
+
+            <Tooltip
+              formatter={(value, name) => [
+                `${formatNumber(Number(value))} days`,
+                String(name),
+              ]}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid #e2e8f0",
+                boxShadow: "0 8px 24px rgba(15, 23, 42, 0.08)",
+                fontSize: 12,
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xs font-medium text-slate-500">
+            Remaining
+          </span>
+
+          <span className="mt-1 max-w-[130px] break-words text-center text-3xl font-semibold tracking-tight text-slate-900">
+            {formatNumber(totalRemaining)}
+          </span>
+
+          <span className="mt-1 text-xs text-slate-500">
+            leave days
+          </span>
+        </div>
       </div>
 
-      <h3 className="mt-3 text-sm font-semibold text-slate-800">
-        {title}
-      </h3>
+      <div className="min-w-0 space-y-4">
+        {chartData.map((item) => {
+          const percentage =
+            totalRemaining > 0
+              ? (item.value / totalRemaining) * 100
+              : 0;
 
-      <p className="mt-1 max-w-sm text-xs leading-5 text-slate-500">
-        {description}
-      </p>
+          return (
+            <div key={item.id} className="min-w-0">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2.5">
+                  <span
+                    className="mt-1 h-3 w-3 shrink-0 rounded-sm"
+                    style={{ backgroundColor: item.color }}
+                    aria-hidden="true"
+                  />
 
-      {action && (
-        <div className="mt-4">
-          {action}
-        </div>
-      )}
+                  <span className="break-words text-sm font-medium text-slate-700">
+                    {item.name}
+                  </span>
+                </div>
+
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">
+                  {formatNumber(item.value)}
+                </span>
+              </div>
+
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${percentage}%`,
+                    backgroundColor: item.color,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        <p className="border-t border-slate-100 pt-3 text-xs leading-5 text-slate-500">
+          The chart shows remaining days by leave type. Balances are based on
+          the data supplied by the leave service.
+        </p>
+      </div>
     </div>
   );
 }
 
 /* ============================================================
-   Main Dashboard
+   Main Employee Dashboard
 ============================================================ */
 
 export function EmployeeDashboard({
-  data = defaultDashboardData,
+  data = EMPTY_DASHBOARD_DATA,
   isLoading = false,
   error = null,
   onRetry,
 }: EmployeeDashboardProps) {
   const { user } = useAuth();
 
-  const firstName =
-    user?.firstName?.trim() || "there";
+  const firstName = user?.firstName?.trim() || "there";
+  const lastName = user?.lastName?.trim() || "";
+  const fullName = `${firstName} ${lastName}`.trim();
+  const jobTitle = user?.jobTitle?.trim() || "Employee";
 
-  const fullName = user
-    ? `${user.firstName} ${user.lastName}`.trim()
-    : "Ziya HR Employee";
+  const dashboardData = data;
 
-  const initials = getInitials(
-    user?.firstName,
-    user?.lastName,
+  const totalRemainingDays = dashboardData.leaveBalances.reduce(
+    (total, balance) => total + Math.max(0, balance.remainingDays),
+    0,
   );
 
-  const departmentName =
-    user?.departmentName ||
-    "Department not assigned";
+  const totalEntitledDays = dashboardData.leaveBalances.reduce(
+    (total, balance) => total + Math.max(0, balance.entitledDays),
+    0,
+  );
 
-  const jobTitle =
-    user?.jobTitle || "Employee";
+  const pendingRequests = dashboardData.recentLeaveRequests.filter(
+    (request) => request.status === "PENDING",
+  ).length;
 
-  const dashboardData =
-    data ?? defaultDashboardData;
+  const approvedRequests = dashboardData.recentLeaveRequests.filter(
+    (request) => request.status === "APPROVED",
+  ).length;
 
-  const unreadNotifications =
-    dashboardData.notifications.filter(
-      (notification) => !notification.read,
-    ).length;
+  const unreadNotifications = dashboardData.notifications.filter(
+    (notification) => !notification.read,
+  ).length;
 
-  const pendingRequests =
-    dashboardData.recentLeaveRequests.filter(
-      (request) =>
-        request.status === "PENDING",
-    ).length;
+  const nextLeave = [...dashboardData.upcomingLeave]
+    .filter((leave) => !Number.isNaN(Date.parse(leave.startDate)))
+    .sort(
+      (first, second) =>
+        Date.parse(first.startDate) - Date.parse(second.startDate),
+    )[0];
 
-  const approvedRequests =
-    dashboardData.recentLeaveRequests.filter(
-      (request) =>
-        request.status === "APPROVED",
-    ).length;
+  const usagePercentage =
+    totalEntitledDays > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            ((totalEntitledDays - totalRemainingDays) /
+              totalEntitledDays) *
+              100,
+          ),
+        )
+      : 0;
 
-  const totalRemainingDays =
-    dashboardData.leaveBalances.reduce(
-      (total, balance) =>
-        total +
-        Math.max(balance.remainingDays, 0),
-      0,
-    );
-
-  const nextLeave =
-    dashboardData.upcomingLeave[0];
-
-  /* ==========================================================
-     Loading state
-  ========================================================== */
+  /* Loading state */
 
   if (isLoading) {
     return (
-      <div className="space-y-6 pb-8">
-        <section className="overflow-hidden rounded-2xl bg-[#071a35] p-5 text-white shadow-sm sm:p-7">
+      <div className="mx-auto w-full min-w-0 max-w-[1600px] space-y-6 overflow-x-clip pb-8">
+        <div className="rounded-2xl bg-[#071a35] p-5 sm:p-7">
           <div className="flex items-center gap-4">
-            <LoadingBlock className="h-14 w-14 shrink-0 rounded-full bg-white/10" />
+            <LoadingBlock className="h-14 w-14 shrink-0 rounded-full bg-white/15" />
 
-            <div className="min-w-0 flex-1 space-y-2">
-              <LoadingBlock className="h-5 w-48 bg-white/10" />
-              <LoadingBlock className="h-4 w-64 max-w-full bg-white/10" />
+            <div className="min-w-0 flex-1 space-y-3">
+              <LoadingBlock className="h-5 w-40 bg-white/15" />
+              <LoadingBlock className="h-4 w-64 max-w-full bg-white/15" />
             </div>
           </div>
-        </section>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map(
-            (_, index) => (
-              <div
-                key={index}
-                className="rounded-2xl border border-slate-200 bg-white p-5"
-              >
-                <LoadingBlock className="h-3 w-24" />
-
-                <LoadingBlock className="mt-4 h-8 w-20" />
-
-                <LoadingBlock className="mt-2 h-3 w-32" />
-              </div>
-            ),
-          )}
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <LoadingBlock className="h-5 w-36" />
-            <LoadingBlock className="mt-6 h-48 w-full" />
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <LoadingBlock className="h-5 w-36" />
-            <LoadingBlock className="mt-6 h-48 w-full" />
-          </div>
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div
+              key={index}
+              className="rounded-2xl border border-slate-200 bg-white p-5"
+            >
+              <LoadingBlock className="h-4 w-28" />
+              <LoadingBlock className="mt-4 h-8 w-20" />
+              <LoadingBlock className="mt-3 h-3 w-36 max-w-full" />
+            </div>
+          ))}
         </div>
+
+        <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
+          {Array.from({ length: 2 }, (_, index) => (
+            <div
+              key={index}
+              className="rounded-2xl border border-slate-200 bg-white p-5"
+            >
+              <LoadingBlock className="h-5 w-40" />
+              <LoadingBlock className="mt-6 h-56 w-full" />
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-sm text-slate-500" role="status">
+          Loading your employee dashboard…
+        </p>
       </div>
     );
   }
 
-  /* ==========================================================
-     Error state
-  ========================================================== */
+  /* Error state */
 
   if (error) {
     return (
-      <div className="flex min-h-[55vh] items-center justify-center py-10">
-        <div className="w-full max-w-lg rounded-2xl border border-red-200 bg-white p-6 text-center shadow-sm sm:p-8">
+      <div className="flex min-h-[50vh] w-full min-w-0 items-center justify-center px-2 py-10">
+        <div
+          className="w-full max-w-lg rounded-2xl border border-red-200 bg-white p-5 text-center shadow-sm sm:p-8"
+          role="alert"
+        >
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-            <Info
-              size={22}
-              strokeWidth={1.9}
-              aria-hidden="true"
-            />
+            <Info size={23} aria-hidden="true" />
           </div>
 
-          <h1 className="mt-4 text-lg font-bold text-slate-900">
+          <h1 className="mt-4 text-lg font-semibold text-slate-900">
             We couldn't load your dashboard
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 break-words text-sm leading-6 text-slate-600">
             {error}
           </p>
 
@@ -530,9 +630,10 @@ export function EmployeeDashboard({
             <button
               type="button"
               onClick={onRetry}
-              className="mt-5 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#d8a415] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#bf920f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
+              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#071a35] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10294c] focus:outline-none focus:ring-2 focus:ring-[#c49a45] focus:ring-offset-2"
             >
-              Try Again
+              <RefreshCw size={16} aria-hidden="true" />
+              Try again
             </button>
           )}
         </div>
@@ -540,679 +641,659 @@ export function EmployeeDashboard({
     );
   }
 
-  /* ==========================================================
-     Dashboard
-  ========================================================== */
+  /* Dashboard */
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* ======================================================
-          Welcome / Employee Identity
-      ======================================================= */}
+    <main className="mx-auto w-full min-w-0 max-w-[1600px] space-y-5 overflow-x-clip pb-8 sm:space-y-6">
+      {/* Welcome banner */}
 
       <section className="relative overflow-hidden rounded-2xl bg-[#071a35] text-white shadow-sm">
         <div
-          className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#d8a415]/10 blur-3xl"
+          className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full border border-white/10"
           aria-hidden="true"
         />
 
         <div
-          className="pointer-events-none absolute -bottom-32 left-1/3 h-64 w-64 rounded-full bg-white/5 blur-3xl"
+          className="pointer-events-none absolute -right-4 -top-12 h-48 w-48 rounded-full border border-white/10"
           aria-hidden="true"
         />
 
-        <div className="relative flex flex-col gap-6 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative flex min-w-0 flex-col gap-5 p-5 sm:p-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4 sm:gap-5">
-            {/* Profile picture */}
             {user?.profilePictureUrl ? (
               <img
                 src={user.profilePictureUrl}
                 alt={`${fullName} profile`}
-                className="h-14 w-14 shrink-0 rounded-full object-cover ring-2 ring-white/20 sm:h-16 sm:w-16"
+                className="h-14 w-14 shrink-0 rounded-full border border-white/20 object-cover sm:h-16 sm:w-16"
               />
             ) : (
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/10 text-base font-bold text-white ring-2 ring-white/10 sm:h-16 sm:w-16"
-                aria-hidden="true"
-              >
-                {initials || (
-                  <UserRound
-                    size={24}
-                    strokeWidth={1.7}
-                  />
-                )}
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-lg font-semibold text-white sm:h-16 sm:w-16">
+                {fullName
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .map((part) => part.charAt(0))
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase() || "E"}
               </div>
             )}
 
             <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-[0.1em] text-slate-300">
-                Employee Dashboard
+              <p className="text-sm font-medium text-white/70">
+                {getGreeting()}
               </p>
 
-              <h1 className="mt-1 truncate text-xl font-bold tracking-tight sm:text-2xl lg:text-3xl">
+              <h1 className="mt-1 break-words text-xl font-semibold tracking-tight sm:text-2xl lg:text-3xl">
                 Welcome back, {firstName}
               </h1>
 
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-300">
-                {jobTitle} • {departmentName}
+              <p className="mt-1 break-words text-sm text-white/70">
+                {jobTitle} · Here is your leave overview.
               </p>
             </div>
           </div>
 
-          {/* Apply for Leave */}
-          <Link
-            to="/employee/leave"
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d8a415] px-5 text-sm font-bold text-white shadow-lg shadow-black/10 transition hover:bg-[#bf920f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a415] focus-visible:ring-offset-2 focus-visible:ring-offset-[#071a35]"
-          >
-            <Plus
-              size={18}
-              strokeWidth={2.2}
-              aria-hidden="true"
-            />
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-end">
+            <Link
+              to="/employee/leave"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-white/20 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/70"
+            >
+              <FileText size={17} aria-hidden="true" />
+              My leave requests
+            </Link>
 
-            Apply for Leave
-          </Link>
-        </div>
-      </section>
-
-      {/* ======================================================
-          Summary Cards
-      ======================================================= */}
-
-      <section aria-label="Leave summary">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <DashboardStatCard
-            label="Leave Remaining"
-            value={
-              dashboardData.leaveBalances.length > 0
-                ? `${totalRemainingDays} days`
-                : "—"
-            }
-            description="Across available leave types"
-            icon={WalletCards}
-            iconClassName="bg-emerald-50 text-emerald-600"
-          />
-
-          <DashboardStatCard
-            label="Pending Requests"
-            value={
-              dashboardData.recentLeaveRequests.length >
-              0
-                ? String(pendingRequests)
-                : "—"
-            }
-            description="Requests awaiting action"
-            icon={Clock3}
-            iconClassName="bg-amber-50 text-amber-600"
-          />
-
-          <DashboardStatCard
-            label="Approved Requests"
-            value={
-              dashboardData.recentLeaveRequests.length >
-              0
-                ? String(approvedRequests)
-                : "—"
-            }
-            description="Approved leave requests"
-            icon={CheckCircle2}
-            iconClassName="bg-blue-50 text-blue-600"
-          />
-
-          <DashboardStatCard
-            label="Notifications"
-            value={
-              dashboardData.notifications.length > 0
-                ? String(unreadNotifications)
-                : "—"
-            }
-            description="Unread notifications"
-            icon={Bell}
-            iconClassName="bg-violet-50 text-violet-600"
-          />
-        </div>
-      </section>
-
-      {/* ======================================================
-          Leave Balances + Upcoming Leave
-      ======================================================= */}
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
-        {/* Leave balances */}
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
-          <div className="border-b border-slate-100 p-5 sm:p-6">
-            <SectionHeader
-              title="Leave Balance"
-              description="Your available leave entitlement and usage."
-              actionLabel="View all"
-              actionHref="/employee/leave"
-            />
+            <Link
+              to="/employee/apply-leave"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#c49a45] px-4 py-2.5 text-sm font-semibold text-[#071a35] transition hover:bg-[#d4ad60] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#071a35]"
+            >
+              <Plus size={17} aria-hidden="true" />
+              Apply for leave
+            </Link>
           </div>
+        </div>
+      </section>
 
-          {dashboardData.leaveBalances.length ===
-          0 ? (
-            <EmptyState
-              icon={WalletCards}
-              title="No leave balance available yet"
-              description="Your leave balances will appear here once your HR records have been synchronized."
-            />
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {dashboardData.leaveBalances.map(
-                (balance) => {
-                  const entitlement = Math.max(
-                    balance.entitledDays,
-                    0,
-                  );
+      {/* Summary cards */}
 
-                  const used = Math.max(
-                    balance.usedDays,
-                    0,
-                  );
+      <section
+        aria-label="Leave summary"
+        className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4"
+      >
+        <DashboardStatCard
+          label="Leave remaining"
+          value={
+            dashboardData.leaveBalances.length > 0
+              ? `${formatNumber(totalRemainingDays)} days`
+              : "—"
+          }
+          description="Across available leave types"
+          icon={WalletCards}
+          iconClassName="bg-amber-50 text-amber-700"
+        />
 
-                  const remaining = Math.max(
-                    balance.remainingDays,
-                    0,
-                  );
+        <DashboardStatCard
+          label="Pending requests"
+          value={
+            dashboardData.recentLeaveRequests.length > 0
+              ? String(pendingRequests)
+              : "0"
+          }
+          description="Awaiting a decision"
+          icon={Clock3}
+          iconClassName="bg-blue-50 text-blue-700"
+        />
 
-                  const usagePercentage =
-                    entitlement > 0
-                      ? Math.min(
-                          Math.round(
-                            (used / entitlement) *
-                              100,
-                          ),
-                          100,
-                        )
-                      : 0;
+        <DashboardStatCard
+          label="Approved requests"
+          value={
+            dashboardData.recentLeaveRequests.length > 0
+              ? String(approvedRequests)
+              : "0"
+          }
+          description="Approved leave applications"
+          icon={CheckCircle2}
+          iconClassName="bg-emerald-50 text-emerald-700"
+        />
 
-                  return (
-                    <div
-                      key={balance.leaveTypeId}
-                      className="p-5 sm:p-6"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {balance.leaveTypeName}
-                          </p>
+        <DashboardStatCard
+          label="Notifications"
+          value={String(unreadNotifications)}
+          description="Unread dashboard notifications"
+          icon={Bell}
+          iconClassName="bg-violet-50 text-violet-700"
+        />
+      </section>
 
-                          <p className="mt-1 text-xs text-slate-500">
-                            {used} used of{" "}
-                            {entitlement} days
-                          </p>
-                        </div>
+      {/* Leave balance and next leave */}
 
-                        <div className="shrink-0 text-left sm:text-right">
-                          <p className="text-lg font-bold text-slate-900">
-                            {remaining}
-                          </p>
+      <section className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
+        <Panel>
+          <SectionHeading
+            title="My leave balance"
+            description="Remaining leave days by leave type"
+          />
 
-                          <p className="text-xs text-slate-500">
-                            days remaining
-                          </p>
-                        </div>
-                      </div>
+          <LeaveBalanceChart balances={dashboardData.leaveBalances} />
 
-                      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-[#d8a415] transition-all"
-                          style={{
-                            width: `${usagePercentage}%`,
-                          }}
-                          aria-label={`${usagePercentage}% of ${balance.leaveTypeName} entitlement used`}
-                        />
-                      </div>
-                    </div>
-                  );
-                },
-              )}
+          {dashboardData.leaveBalances.length > 0 && (
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm text-slate-500">
+                  Overall entitlement usage
+                </span>
+
+                <span className="text-sm font-semibold tabular-nums text-slate-800">
+                  {formatNumber(usagePercentage)}%
+                </span>
+              </div>
+
+              <div
+                className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
+                role="progressbar"
+                aria-label="Overall leave entitlement usage"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(usagePercentage)}
+              >
+                <div
+                  className="h-full rounded-full bg-[#c49a45] transition-[width]"
+                  style={{ width: `${usagePercentage}%` }}
+                />
+              </div>
+
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {formatNumber(totalEntitledDays)} entitled days in total.
+                Check individual balances below for the breakdown.
+              </p>
             </div>
           )}
-        </section>
+        </Panel>
 
-        {/* Upcoming leave */}
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
-          <div className="border-b border-slate-100 p-5 sm:p-6">
-            <SectionHeader
-              title="Upcoming Leave"
-              description="Your next approved time away."
-              actionLabel="Calendar"
-              actionHref="/employee/calendar"
-            />
-          </div>
+        <Panel>
+          <SectionHeading
+            title="Upcoming leave"
+            description="Your next approved leave period"
+            action={
+              <Link
+                to="/employee/leave"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[#8a6725] hover:text-[#071a35]"
+              >
+                View requests
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            }
+          />
 
           {nextLeave ? (
-            <div className="p-5 sm:p-6">
-              <div className="rounded-2xl bg-slate-50 p-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#d8a415]/10 text-[#a47700]">
-                    <PlaneTakeoff
-                      size={20}
-                      strokeWidth={1.9}
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
+                  <PlaneTakeoff size={21} aria-hidden="true" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-base font-semibold text-slate-900">
+                    {nextLeave.leaveTypeName}
+                  </p>
+
+                  <p className="mt-1 break-words text-sm leading-6 text-slate-600">
+                    {formatDateRange(
+                      nextLeave.startDate,
+                      nextLeave.endDate,
+                    )}
+                  </p>
+
+                  <p className="mt-2 text-sm font-medium text-emerald-800">
+                    {formatNumber(nextLeave.totalDays)} days approved
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <EmptyState
+              icon={CalendarDays}
+              title="No upcoming leave"
+              description="Your future approved leave will appear here."
+              action={
+                <Link
+                  to="/employee/apply-leave"
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#071a35] px-4 py-2 text-sm font-medium text-white hover:bg-[#10294c]"
+                >
+                  <Plus size={16} aria-hidden="true" />
+                  Apply for leave
+                </Link>
+              }
+            />
+          )}
+
+          <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4">
+            <div className="flex items-start gap-3">
+              <CalendarDays
+                className="mt-0.5 shrink-0 text-slate-500"
+                size={18}
+                aria-hidden="true"
+              />
+
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-800">
+                  Planning ahead?
+                </p>
+
+                <p className="mt-1 text-sm leading-5 text-slate-500">
+                  Submit a leave request early and follow its approval status
+                  from your leave history.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Panel>
+      </section>
+
+      {/* Individual leave balances */}
+
+      <Panel>
+        <SectionHeading
+          title="Balance breakdown"
+          description="Entitled, used and remaining days for each leave type"
+        />
+
+        {dashboardData.leaveBalances.length === 0 ? (
+          <EmptyState
+            icon={WalletCards}
+            title="No leave balances available yet"
+            description="Your leave balances will appear here when the records are available from HR."
+          />
+        ) : (
+          <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">
+            {dashboardData.leaveBalances.map((balance, index) => {
+              const entitlement = Math.max(0, balance.entitledDays);
+              const used = Math.max(0, balance.usedDays);
+              const remaining = Math.max(0, balance.remainingDays);
+
+              const progress =
+                entitlement > 0
+                  ? Math.min(100, (used / entitlement) * 100)
+                  : 0;
+
+              const color =
+                balance.color ||
+                CHART_COLORS[index % CHART_COLORS.length];
+
+              return (
+                <article
+                  key={balance.leaveTypeId}
+                  className="min-w-0 rounded-xl border border-slate-200 p-4 sm:p-5"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span
+                      className="mt-1 h-3 w-3 shrink-0 rounded-sm"
+                      style={{ backgroundColor: color }}
                       aria-hidden="true"
+                    />
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="break-words text-sm font-semibold text-slate-900">
+                        {balance.leaveTypeName}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatNumber(entitlement)} entitled days
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <p className="text-lg font-semibold tabular-nums text-slate-900">
+                        {formatNumber(remaining)}
+                      </p>
+
+                      <p className="text-xs text-slate-500">remaining</p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"
+                    role="progressbar"
+                    aria-label={`${balance.leaveTypeName} days used`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={Math.round(progress)}
+                  >
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: color,
+                      }}
                     />
                   </div>
 
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900">
-                      {nextLeave.leaveTypeName}
-                    </p>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                    <span>
+                      {formatNumber(used)} days used
+                    </span>
 
-                    <p className="mt-1 text-sm text-slate-600">
-                      {formatDate(
-                        nextLeave.startDate,
-                      )}{" "}
-                      –{" "}
-                      {formatDate(
-                        nextLeave.endDate,
-                      )}
-                    </p>
-
-                    <p className="mt-2 text-xs font-medium text-slate-500">
-                      {nextLeave.totalDays}{" "}
-                      {nextLeave.totalDays === 1
-                        ? "day"
-                        : "days"}
-                    </p>
+                    <span>
+                      {formatNumber(remaining)} days available
+                    </span>
                   </div>
-                </div>
-              </div>
-
-              {dashboardData.upcomingLeave.length >
-                1 && (
-                <div className="mt-4 space-y-3">
-                  {dashboardData.upcomingLeave
-                    .slice(1, 3)
-                    .map((leave) => (
-                      <div
-                        key={leave.id}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-800">
-                            {leave.leaveTypeName}
-                          </p>
-
-                          <p className="mt-0.5 text-xs text-slate-500">
-                            {formatDate(
-                              leave.startDate,
-                            )}
-                          </p>
-                        </div>
-
-                        <span className="shrink-0 text-xs font-semibold text-slate-600">
-                          {leave.totalDays}d
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <EmptyState
-              icon={PlaneTakeoff}
-              title="No upcoming leave"
-              description="You don't have any upcoming approved leave at the moment."
-              action={
-                <Link
-                  to="/employee/leave"
-                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
-                >
-                  Apply for leave
-                  <ArrowRight
-                    size={14}
-                    aria-hidden="true"
-                  />
-                </Link>
-              }
-            />
-          )}
-        </section>
-      </div>
-
-      {/* ======================================================
-          Recent Requests + Notifications
-      ======================================================= */}
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
-        {/* Recent leave requests */}
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
-          <div className="border-b border-slate-100 p-5 sm:p-6">
-            <SectionHeader
-              title="Recent Leave Requests"
-              description="Track the status of your submitted requests."
-              actionLabel="View leave history"
-              actionHref="/employee/leave"
-            />
+                </article>
+              );
+            })}
           </div>
+        )}
+      </Panel>
 
-          {dashboardData.recentLeaveRequests
-            .length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No leave requests yet"
-              description="Your submitted leave requests will appear here with their approval status."
-              action={
-                <Link
-                  to="/employee/leave"
-                  className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-[#d8a415] px-3.5 text-xs font-semibold text-white transition hover:bg-[#bf920f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
-                >
-                  <Plus
-                    size={14}
-                    aria-hidden="true"
-                  />
-                  Apply for leave
-                </Link>
-              }
-            />
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {dashboardData.recentLeaveRequests
-                .slice(0, 5)
-                .map((request) => (
+      {/* Recent requests */}
+
+      <Panel>
+        <SectionHeading
+          title="Recent leave requests"
+          description="Track the status of your latest applications"
+          action={
+            <Link
+              to="/employee/leave"
+              className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-[#8a6725] hover:text-[#071a35]"
+            >
+              View all
+              <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          }
+        />
+
+        {dashboardData.recentLeaveRequests.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title="No leave requests yet"
+            description="Your submitted applications will appear here with their approval status."
+            action={
+              <Link
+                to="/employee/apply-leave"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#071a35] px-4 py-2 text-sm font-medium text-white hover:bg-[#10294c]"
+              >
+                <Plus size={16} aria-hidden="true" />
+                Apply for leave
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            {/* Mobile request cards */}
+
+            <div className="space-y-3 md:hidden">
+              {dashboardData.recentLeaveRequests.slice(0, 5).map((request) => {
+                const StatusIcon = getStatusIcon(request.status);
+
+                return (
                   <Link
                     key={request.id}
                     to={`/employee/leave/${request.id}`}
-                    className="block p-5 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c89b20] sm:p-6"
+                    className="block min-w-0 rounded-xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#c49a45]"
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {request.leaveTypeName}
-                          </p>
+                        <p className="break-words text-sm font-semibold text-slate-900">
+                          {request.leaveTypeName}
+                        </p>
 
-                          <span
-                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${getStatusClasses(
-                              request.status,
-                            )}`}
-                          >
-                            {getStatusLabel(
-                              request.status,
-                            )}
-                          </span>
-                        </div>
+                        <p className="mt-1 break-words text-xs text-slate-500">
+                          Ref: {request.referenceNumber}
+                        </p>
+                      </div>
 
-                        <p className="mt-1 text-xs text-slate-500">
-                          {formatDate(
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[request.status]}`}
+                      >
+                        <StatusIcon size={13} aria-hidden="true" />
+                        {getDisplayStatus(request.status)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="text-xs text-slate-500">Period</p>
+                        <p className="mt-1 break-words text-slate-700">
+                          {formatDateRange(
                             request.startDate,
-                          )}{" "}
-                          –{" "}
-                          {formatDate(
                             request.endDate,
                           )}
                         </p>
-
-                        <p className="mt-1 text-[11px] text-slate-400">
-                          {request.referenceNumber}
-                        </p>
                       </div>
 
-                      <div className="flex shrink-0 items-center justify-between gap-4 sm:block sm:text-right">
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">
-                            {request.totalDays}{" "}
-                            {request.totalDays === 1
-                              ? "day"
-                              : "days"}
-                          </p>
-
-                          <p className="mt-1 text-[11px] text-slate-400">
-                            Submitted{" "}
-                            {formatRelativeTime(
-                              request.submittedAt,
-                            )}
-                          </p>
-                        </div>
-
-                        <ArrowRight
-                          size={16}
-                          className="text-slate-400 sm:hidden"
-                          aria-hidden="true"
-                        />
+                      <div className="min-w-0">
+                        <p className="text-xs text-slate-500">Duration</p>
+                        <p className="mt-1 font-medium text-slate-800">
+                          {formatNumber(request.totalDays)} days
+                        </p>
                       </div>
                     </div>
 
-                    {request.status ===
-                      "REJECTED" &&
-                      request.rejectionReason && (
-                        <div className="mt-3 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
-                          <span className="font-semibold">
-                            Reason:
-                          </span>{" "}
-                          {request.rejectionReason}
-                        </div>
-                      )}
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                      <span className="text-xs text-slate-500">
+                        Submitted {formatDate(request.submittedAt)}
+                      </span>
+
+                      <ArrowRight
+                        size={16}
+                        className="shrink-0 text-slate-400"
+                        aria-hidden="true"
+                      />
+                    </div>
                   </Link>
-                ))}
+                );
+              })}
             </div>
-          )}
-        </section>
 
-        {/* Notifications */}
-        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
-          <div className="border-b border-slate-100 p-5 sm:p-6">
-            <SectionHeader
-              title="Notifications"
-              description="Recent updates that may need your attention."
-              actionLabel="View all"
-              actionHref="/employee/notifications"
-            />
-          </div>
+            {/* Tablet and desktop request table */}
 
-          {dashboardData.notifications.length ===
-          0 ? (
+            <div className="hidden min-w-0 overflow-x-auto md:block">
+              <table className="w-full min-w-[680px] table-auto text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-3">Leave type</th>
+                    <th className="px-3 py-3">Period</th>
+                    <th className="px-3 py-3">Days</th>
+                    <th className="px-3 py-3">Submitted</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">
+                      <span className="sr-only">View request</span>
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+                  {dashboardData.recentLeaveRequests
+                    .slice(0, 5)
+                    .map((request) => (
+                      <tr
+                        key={request.id}
+                        className="transition hover:bg-slate-50"
+                      >
+                        <td className="max-w-[220px] px-3 py-4">
+                          <Link
+                            to={`/employee/leave/${request.id}`}
+                            className="break-words text-sm font-medium text-slate-900 hover:text-[#8a6725]"
+                          >
+                            {request.leaveTypeName}
+                          </Link>
+
+                          <p className="mt-1 break-words text-xs text-slate-500">
+                            {request.referenceNumber}
+                          </p>
+                        </td>
+
+                        <td className="px-3 py-4 text-sm text-slate-600">
+                          {formatDateRange(
+                            request.startDate,
+                            request.endDate,
+                          )}
+                        </td>
+
+                        <td className="px-3 py-4 text-sm tabular-nums text-slate-700">
+                          {formatNumber(request.totalDays)}
+                        </td>
+
+                        <td className="px-3 py-4 text-sm text-slate-600">
+                          {formatDate(request.submittedAt)}
+                        </td>
+
+                        <td className="px-3 py-4">
+                          <span
+                            className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[request.status]}`}
+                          >
+                            {getDisplayStatus(request.status)}
+                          </span>
+                        </td>
+
+                        <td className="px-3 py-4 text-right">
+                          <Link
+                            to={`/employee/leave/${request.id}`}
+                            aria-label={`View ${request.leaveTypeName} request`}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#c49a45]"
+                          >
+                            <ArrowRight size={17} aria-hidden="true" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Panel>
+
+      {/* Notifications and events */}
+
+      <section className="grid min-w-0 grid-cols-1 gap-5 xl:grid-cols-2">
+        <Panel>
+          <SectionHeading
+            title="Notifications"
+            description="Recent updates for your account"
+            action={
+              <Link
+                to="/employee/notifications"
+                className="inline-flex min-h-9 items-center gap-1 text-sm font-medium text-[#8a6725] hover:text-[#071a35]"
+              >
+                View all
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            }
+          />
+
+          {dashboardData.notifications.length === 0 ? (
             <EmptyState
               icon={Bell}
               title="You're all caught up"
-              description="New leave decisions, announcements and important HR updates will appear here."
+              description="There are no notifications to display right now."
             />
           ) : (
             <div className="divide-y divide-slate-100">
-              {dashboardData.notifications
-                .slice(0, 5)
-                .map((notification) => (
-                  <Link
-                    key={notification.id}
-                    to="/employee/notifications"
-                    className={`block p-4 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c89b20] ${
-                      notification.read
-                        ? ""
-                        : "bg-amber-50/30"
-                    }`}
-                  >
-                    <div className="flex gap-3">
-                      <span
-                        className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                          notification.read
-                            ? "bg-slate-200"
-                            : "bg-[#d8a415]"
-                        }`}
-                        aria-hidden="true"
-                      />
+              {dashboardData.notifications.slice(0, 5).map((notification) => (
+                <div
+                  key={notification.id}
+                  className="flex min-w-0 items-start gap-3 py-4 first:pt-0 last:pb-0"
+                >
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                    <Bell size={17} aria-hidden="true" />
+                  </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-800">
-                          {notification.title}
-                        </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <h3 className="min-w-0 flex-1 break-words text-sm font-medium text-slate-900">
+                        {notification.title}
+                      </h3>
 
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                          {notification.message}
-                        </p>
-
-                        <p className="mt-2 text-[11px] text-slate-400">
-                          {formatRelativeTime(
-                            notification.createdAt,
-                          )}
-                        </p>
-                      </div>
+                      {!notification.read && (
+                        <span
+                          className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#c49a45]"
+                          aria-label="Unread"
+                        />
+                      )}
                     </div>
-                  </Link>
-                ))}
+
+                    <p className="mt-1 break-words text-sm leading-5 text-slate-500">
+                      {notification.message}
+                    </p>
+
+                    <p className="mt-2 text-xs text-slate-400">
+                      {formatDate(notification.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </section>
-      </div>
+        </Panel>
 
-      {/* ======================================================
-          Upcoming Events
-      ======================================================= */}
-
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
-        <div className="border-b border-slate-100 p-5 sm:p-6">
-          <SectionHeader
-            title="Upcoming Events"
-            description="Public holidays, approved leave and important HR dates."
-            actionLabel="Open calendar"
-            actionHref="/employee/calendar"
+        <Panel>
+          <SectionHeading
+            title="Upcoming events"
+            description="Important dates and announcements"
           />
-        </div>
 
-        {dashboardData.upcomingEvents.length ===
-        0 ? (
-          <EmptyState
-            icon={CalendarDays}
-            title="No upcoming events"
-            description="Your HR calendar will show holidays, approved leave and other relevant dates here."
-          />
-        ) : (
-          <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-3">
-            {dashboardData.upcomingEvents
-              .slice(0, 6)
-              .map((event) => {
-                const EventIcon = getEventIcon(
-                  event.type,
-                );
-
-                return (
+          {dashboardData.upcomingEvents.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title="No upcoming events"
+              description="Important dates and announcements will appear here when available."
+            />
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {dashboardData.upcomingEvents
+                .slice()
+                .sort(
+                  (first, second) =>
+                    Date.parse(first.date) - Date.parse(second.date),
+                )
+                .slice(0, 5)
+                .map((event) => (
                   <div
                     key={event.id}
-                    className="flex gap-3 p-5"
+                    className="flex min-w-0 items-start gap-3 py-4 first:pt-0 last:pb-0"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                      <EventIcon
-                        size={18}
-                        strokeWidth={1.8}
-                        aria-hidden="true"
-                      />
+                    <div className="flex h-11 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-amber-50 text-[#8a6725]">
+                      <CalendarDays size={18} aria-hidden="true" />
                     </div>
 
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-800">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="break-words text-sm font-semibold text-slate-900">
                         {event.title}
-                      </p>
+                      </h3>
 
-                      <p className="mt-1 text-xs font-medium text-[#a47700]">
+                      <p className="mt-1 break-words text-xs text-slate-500">
                         {formatDate(event.date)}
                       </p>
 
                       {event.description && (
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                        <p className="mt-2 break-words text-sm leading-5 text-slate-600">
                           {event.description}
                         </p>
                       )}
                     </div>
                   </div>
-                );
-              })}
-          </div>
-        )}
+                ))}
+            </div>
+          )}
+        </Panel>
       </section>
 
-      {/* ======================================================
-          Quick Actions
-      ======================================================= */}
+      {/* Footer note */}
 
-      <section>
-        <div className="mb-3">
-          <SectionHeader
-            title="Quick Actions"
-            description="Common tasks available from your employee workspace."
-          />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickAction
-            href="/employee/leave"
-            icon={Plus}
-            title="Apply for Leave"
-            description="Submit a new leave request."
-          />
-
-          <QuickAction
-            href="/employee/calendar"
-            icon={CalendarDays}
-            title="View Calendar"
-            description="Check leave and HR dates."
-          />
-
-          <QuickAction
-            href="/employee/team"
-            icon={UserRound}
-            title="View My Team"
-            description="See team availability."
-          />
-
-          <QuickAction
-            href="/employee/notifications"
-            icon={Bell}
-            title="Notifications"
-            description={
-              unreadNotifications > 0
-                ? `${unreadNotifications} unread`
-                : "You're all caught up."
-            }
-          />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-/* ============================================================
-   Quick Action
-============================================================ */
-
-function QuickAction({
-  href,
-  icon: Icon,
-  title,
-  description,
-}: {
-  href: string;
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}) {
-  return (
-    <Link
-      to={href}
-      className="group flex min-h-[104px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/30 transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
-    >
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#d8a415]/10 text-[#a47700] transition group-hover:bg-[#d8a415] group-hover:text-white">
-        <Icon
-          size={20}
-          strokeWidth={1.9}
+      <div className="flex min-w-0 items-start gap-2 px-1 text-xs leading-5 text-slate-500">
+        <Info
+          size={15}
+          className="mt-0.5 shrink-0"
           aria-hidden="true"
         />
-      </div>
 
-      <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-slate-900">
-          {title}
-        </p>
-
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-          {description}
+        <p className="min-w-0 break-words">
+          Leave balances and request statuses reflect the records supplied by
+          the leave service. Contact HR if a balance or approval status appears
+          incorrect.
         </p>
       </div>
-
-      <ArrowRight
-        size={16}
-        className="ml-auto shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500"
-        aria-hidden="true"
-      />
-    </Link>
+    </main>
   );
 }
+
+export default EmployeeDashboard;

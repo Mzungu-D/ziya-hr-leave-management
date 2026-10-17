@@ -38,11 +38,21 @@ import SystemSettings from "./pages/admin/SystemSettings";
 
 import { Login } from "./pages/auth/Login";
 
-import { ApplyLeave } from "./pages/employee/ApplyLeave";
+import ApplyLeave from "./pages/employee/ApplyLeave";
 
 import { EmployeeDashboard } from "./pages/employee/EmployeeDashboard";
 
 import { LeaveManagement } from "./pages/employee/LeaveManagement";
+
+import { ManagerDashboard } from "./pages/manager/ManagerDashboard";
+
+import { ManagerApprovals } from "./pages/manager/ManagerApprovals";
+
+import Team from "./pages/manager/Team";
+
+import { ManagerCalendar } from "./pages/manager/ManagerCalendar";
+
+import { ManagerReports } from "./pages/manager/ManagerReports";
 
 import { HelpSupport } from "./pages/HelpSupport";
 
@@ -106,6 +116,79 @@ function App() {
           />
 
           {/* =====================================================
+              MANAGER WORKSPACE — DASHBOARD
+          ====================================================== */}
+
+          <Route
+            path="/manager"
+            element={
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
+                <AppShell>
+                  <ManagerDashboard />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =====================================================
+              MANAGER WORKSPACE — LEAVE APPROVALS
+          ====================================================== */}
+
+          <Route
+            path="/manager/approvals"
+            element={
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
+                <AppShell>
+                  <ManagerApprovals />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =====================================================
+              MANAGER WORKSPACE — MY TEAM
+          ====================================================== */}
+
+          <Route
+            path="/manager/team"
+            element={
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
+                <AppShell>
+                  <Team />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/calendar"
+            element={
+              <ProtectedRoute allowedRoles={["MANAGER"]}>
+                <AppShell>
+                  <ManagerCalendar />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/manager/reports"
+            element={
+              <ProtectedRoute allowedRoles={["MANAGER"]}>
+                <AppShell>
+                  <ManagerReports />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* =====================================================
               HR / ADMIN WORKSPACE
           ====================================================== */}
 
@@ -126,7 +209,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” EMPLOYEES
+              HR / ADMIN — EMPLOYEES
           ====================================================== */}
 
           <Route
@@ -146,7 +229,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” LEAVE MANAGEMENT
+              HR / ADMIN — LEAVE MANAGEMENT
           ====================================================== */}
 
           <Route
@@ -166,7 +249,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” LEAVE TYPES
+              HR / ADMIN — LEAVE TYPES
           ====================================================== */}
 
           <Route
@@ -186,7 +269,8 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” LEAVE APPROVALS
+              HR / ADMIN — LEAVE APPROVALS
+              HR MAKES THE FINAL DECISION
           ====================================================== */}
 
           <Route
@@ -206,7 +290,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” POLICIES
+              HR / ADMIN — POLICIES
           ====================================================== */}
 
           <Route
@@ -226,7 +310,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” DEPARTMENTS
+              HR / ADMIN — DEPARTMENTS
           ====================================================== */}
 
           <Route
@@ -246,7 +330,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” HOLIDAYS & CALENDAR
+              HR / ADMIN — HOLIDAYS & CALENDAR
           ====================================================== */}
 
           <Route
@@ -266,7 +350,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” REPORTS & ANALYTICS
+              HR / ADMIN — REPORTS & ANALYTICS
           ====================================================== */}
 
           <Route
@@ -286,7 +370,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” SYSTEM SETTINGS
+              HR / ADMIN — SYSTEM SETTINGS
           ====================================================== */}
 
           <Route
@@ -306,7 +390,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN â€” AUDIT LOGS
+              HR / ADMIN — AUDIT LOGS
           ====================================================== */}
 
           <Route
@@ -326,13 +410,15 @@ function App() {
           />
 
           {/* =====================================================
-              HELP & SUPPORT
+              NOTIFICATIONS
           ====================================================== */}
 
           <Route
             path="/employee/notifications"
             element={
-              <ProtectedRoute allowedRoles={["EMPLOYEE"]}>
+              <ProtectedRoute
+                allowedRoles={["EMPLOYEE"]}
+              >
                 <AppShell>
                   <Notifications />
                 </AppShell>
@@ -343,7 +429,9 @@ function App() {
           <Route
             path="/manager/notifications"
             element={
-              <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
                 <AppShell>
                   <Notifications />
                 </AppShell>
@@ -354,13 +442,23 @@ function App() {
           <Route
             path="/admin/notifications"
             element={
-              <ProtectedRoute allowedRoles={["HR_ADMIN", "SUPER_ADMIN"]}>
+              <ProtectedRoute
+                allowedRoles={[
+                  "HR_ADMIN",
+                  "SUPER_ADMIN",
+                ]}
+              >
                 <AppShell>
                   <Notifications />
                 </AppShell>
               </ProtectedRoute>
             }
           />
+
+          {/* =====================================================
+              HELP & SUPPORT
+          ====================================================== */}
+
           <Route
             path="/help"
             element={
@@ -413,5 +511,4 @@ function App() {
 }
 
 export default App;
-
 

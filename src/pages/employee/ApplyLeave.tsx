@@ -13,17 +13,14 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import {
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import type {
-  ChangeEvent,
-  FormEvent,
-  ReactNode,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  createLeaveRequest,
+  getLeaveBalances,
+  listLeaveTypes,
+} from "../../services/leave.service";
 
 /* ============================================================
    Types
@@ -79,8 +76,7 @@ interface ApplyLeaveProps {
    Constants
 ============================================================ */
 
-const MAX_ATTACHMENT_SIZE =
-  10 * 1024 * 1024;
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
 const ACCEPTED_ATTACHMENT_TYPES = [
   "application/pdf",
@@ -89,11 +85,9 @@ const ACCEPTED_ATTACHMENT_TYPES = [
   "image/webp",
 ];
 
-const ACCEPTED_ATTACHMENT_EXTENSIONS =
-  ".pdf,.jpg,.jpeg,.png,.webp";
+const ACCEPTED_ATTACHMENT_EXTENSIONS = ".pdf,.jpg,.jpeg,.png,.webp";
 
 const defaultLeaveTypes: LeaveTypeOption[] = [];
-
 const defaultHolidays: LeaveHoliday[] = [];
 
 /* ============================================================
@@ -102,27 +96,17 @@ const defaultHolidays: LeaveHoliday[] = [];
 
 function getTodayDate(): string {
   const today = new Date();
-
   const year = today.getFullYear();
-  const month = String(
-    today.getMonth() + 1,
-  ).padStart(2, "0");
-  const day = String(
-    today.getDate(),
-  ).padStart(2, "0");
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
 
-function parseDateOnly(
-  value: string,
-): Date | null {
-  if (!value) {
-    return null;
-  }
+function parseDateOnly(value: string): Date | null {
+  if (!value) return null;
 
-  const [year, month, day] =
-    value.split("-").map(Number);
+  const [year, month, day] = value.split("-").map(Number);
 
   if (
     !year ||
@@ -136,11 +120,7 @@ function parseDateOnly(
     return null;
   }
 
-  const date = new Date(
-    year,
-    month - 1,
-    day,
-  );
+  const date = new Date(year, month - 1, day);
 
   if (
     date.getFullYear() !== year ||
@@ -153,14 +133,9 @@ function parseDateOnly(
   return date;
 }
 
-function formatDate(
-  value: string,
-): string {
+function formatDate(value: string): string {
   const date = parseDateOnly(value);
-
-  if (!date) {
-    return "Date unavailable";
-  }
+  if (!date) return "Date unavailable";
 
   return new Intl.DateTimeFormat("en-KE", {
     day: "numeric",
@@ -177,65 +152,54 @@ function calculateWorkingDays(
   const start = parseDateOnly(startDate);
   const end = parseDateOnly(endDate);
 
-  if (!start || !end || start > end) {
-    return 0;
-  }
+  if (!start || !end || start > end) return 0;
 
-  const holidayDates = new Set(
-    holidays.map((holiday) => holiday.date),
-  );
-
+  const holidayDates = new Set(holidays.map((holiday) => holiday.date));
   let workingDays = 0;
-
   const current = new Date(start);
 
   while (current <= end) {
     const dayOfWeek = current.getDay();
-
-    const isWeekend =
-      dayOfWeek === 0 ||
-      dayOfWeek === 6;
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
     const year = current.getFullYear();
-    const month = String(
-      current.getMonth() + 1,
-    ).padStart(2, "0");
-    const day = String(
-      current.getDate(),
-    ).padStart(2, "0");
-
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    const day = String(current.getDate()).padStart(2, "0");
     const dateKey = `${year}-${month}-${day}`;
 
-    const isHoliday =
-      holidayDates.has(dateKey);
-
-    if (!isWeekend && !isHoliday) {
+    if (!isWeekend && !holidayDates.has(dateKey)) {
       workingDays += 1;
     }
 
-    current.setDate(
-      current.getDate() + 1,
-    );
+    current.setDate(current.getDate() + 1);
   }
 
   return workingDays;
 }
 
-function formatFileSize(
-  bytes: number,
-): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string" &&
+    error.message.trim()
+  ) {
+    return error.message;
   }
 
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} KB`;
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
   }
 
-  return `${(
-    bytes /
-    (1024 * 1024)
-  ).toFixed(1)} MB`;
+  return fallback;
 }
 
 /* ============================================================
@@ -252,12 +216,8 @@ function FieldLabel({
   return (
     <label className="mb-2 block text-sm font-semibold text-slate-800">
       {children}
-
       {required && (
-        <span
-          className="ml-1 text-red-500"
-          aria-hidden="true"
-        >
+        <span className="ml-1 text-red-500" aria-hidden="true">
           *
         </span>
       )}
@@ -265,14 +225,8 @@ function FieldLabel({
   );
 }
 
-function FormError({
-  message,
-}: {
-  message?: string;
-}) {
-  if (!message) {
-    return null;
-  }
+function FormError({ message }: { message?: string }) {
+  if (!message) return null;
 
   return (
     <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-5 text-red-600">
@@ -281,7 +235,6 @@ function FormError({
         className="mt-0.5 shrink-0"
         aria-hidden="true"
       />
-
       <span>{message}</span>
     </p>
   );
@@ -298,25 +251,21 @@ function LoadingState() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.7fr)]">
         <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-6">
           <div className="h-5 w-36 rounded bg-slate-100" />
-
           <div className="mt-8 space-y-6">
             <div>
               <div className="h-3 w-24 rounded bg-slate-100" />
               <div className="mt-2 h-11 w-full rounded-xl bg-slate-100" />
             </div>
-
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <div className="h-3 w-24 rounded bg-slate-100" />
                 <div className="mt-2 h-11 w-full rounded-xl bg-slate-100" />
               </div>
-
               <div>
                 <div className="h-3 w-24 rounded bg-slate-100" />
                 <div className="mt-2 h-11 w-full rounded-xl bg-slate-100" />
               </div>
             </div>
-
             <div>
               <div className="h-3 w-24 rounded bg-slate-100" />
               <div className="mt-2 h-32 w-full rounded-xl bg-slate-100" />
@@ -349,55 +298,108 @@ export function ApplyLeave({
   onCancel,
 }: ApplyLeaveProps) {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fileInputRef =
-    useRef<HTMLInputElement>(null);
+  const [loadedLeaveTypes, setLoadedLeaveTypes] =
+    useState<LeaveTypeOption[]>([]);
+  const [internalLoading, setInternalLoading] =
+    useState(leaveTypes.length === 0);
+  const [internalSubmitting, setInternalSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [leaveTypeId, setLeaveTypeId] =
-    useState("");
+  const [leaveTypeId, setLeaveTypeId] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [attachment, setAttachment] = useState<File | undefined>();
+  const [attachmentError, setAttachmentError] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
 
-  const [startDate, setStartDate] =
-    useState("");
+  const effectiveLeaveTypes =
+    leaveTypes.length > 0 ? leaveTypes : loadedLeaveTypes;
 
-  const [endDate, setEndDate] =
-    useState("");
+  const effectiveIsLoading =
+    isLoading || (leaveTypes.length === 0 && internalLoading);
 
-  const [reason, setReason] =
-    useState("");
+  const effectiveIsSubmitting = isSubmitting || internalSubmitting;
+  const effectiveError = error || loadError;
 
-  const [attachment, setAttachment] =
-    useState<File | undefined>();
+  useEffect(() => {
+    if (leaveTypes.length > 0) {
+      setInternalLoading(false);
+      return;
+    }
 
-  const [attachmentError, setAttachmentError] =
-    useState("");
+    const controller = new AbortController();
+    let active = true;
 
-  const [submitError, setSubmitError] =
-    useState("");
+    async function loadLeaveOptions() {
+      setInternalLoading(true);
+      setLoadError(null);
 
-  const [submitted, setSubmitted] =
-    useState(false);
+      try {
+        const [types, balances] = await Promise.all([
+          listLeaveTypes({ signal: controller.signal }),
+          getLeaveBalances(undefined, { signal: controller.signal }),
+        ]);
 
-  const [validationAttempted, setValidationAttempted] =
-    useState(false);
+        if (!active) return;
 
-  const today = useMemo(
-    () => getTodayDate(),
-    [],
+        const balanceByLeaveType = new Map(
+          balances.map((balance) => [
+            balance.leaveTypeId,
+            Number.isFinite(Number(balance.remainingDays))
+              ? Math.max(0, Number(balance.remainingDays))
+              : 0,
+          ]),
+        );
+
+        setLoadedLeaveTypes(
+          types
+            .filter((type) => type.isActive !== false)
+            .map((type) => ({
+              id: type.id,
+              name: type.name,
+              remainingDays: balanceByLeaveType.get(type.id) ?? 0,
+              requiresAttachment: type.requiresDocument,
+              attachmentDescription: type.requiresDocument
+                ? "A supporting document is required for this leave type."
+                : undefined,
+              isActive: type.isActive,
+            })),
+        );
+      } catch (loadFailure) {
+        if (!active || controller.signal.aborted) return;
+
+        setLoadError(
+          getErrorMessage(
+            loadFailure,
+            "Unable to load leave types and balances. Please refresh and try again.",
+          ),
+        );
+      } finally {
+        if (active) setInternalLoading(false);
+      }
+    }
+
+    void loadLeaveOptions();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [leaveTypes]);
+
+  const today = useMemo(() => getTodayDate(), []);
+
+  const selectedLeaveType = effectiveLeaveTypes.find(
+    (leaveType) => leaveType.id === leaveTypeId,
   );
 
-  const selectedLeaveType =
-    leaveTypes.find(
-      (leaveType) =>
-        leaveType.id === leaveTypeId,
-    );
-
   const workingDays = useMemo(
-    () =>
-      calculateWorkingDays(
-        startDate,
-        endDate,
-        holidays,
-      ),
+    () => calculateWorkingDays(startDate, endDate, holidays),
     [startDate, endDate, holidays],
   );
 
@@ -405,64 +407,45 @@ export function ApplyLeave({
     const start = parseDateOnly(startDate);
     const end = parseDateOnly(endDate);
 
-    return Boolean(
-      start &&
-        end &&
-        start > end,
-    );
+    return Boolean(start && end && start > end);
   }, [startDate, endDate]);
 
-  const startDateIsInPast =
-    Boolean(startDate) &&
-    startDate < today;
+  const startDateIsInPast = Boolean(startDate) && startDate < today;
 
-  const insufficientBalance =
-    Boolean(
-      selectedLeaveType &&
-        workingDays >
-          selectedLeaveType.remainingDays,
-    );
+  const insufficientBalance = Boolean(
+    selectedLeaveType &&
+      workingDays > selectedLeaveType.remainingDays,
+  );
 
-  const requiresAttachment =
-    Boolean(
-      selectedLeaveType?.requiresAttachment,
-    );
+  const requiresAttachment = Boolean(
+    selectedLeaveType?.requiresAttachment,
+  );
 
-  const isCapacityBlocked =
-    Boolean(
-      capacityStatus?.wouldExceedCapacity &&
-        capacityStatus.mode === "STRICT",
-    );
+  const isCapacityBlocked = Boolean(
+    capacityStatus?.wouldExceedCapacity &&
+      capacityStatus.mode === "STRICT",
+  );
 
   const reasonTooShort =
-    reason.trim().length > 0 &&
-    reason.trim().length < 10;
+    reason.trim().length > 0 && reason.trim().length < 10;
 
-  const reasonTooLong =
-    reason.trim().length > 1000;
+  const reasonTooLong = reason.trim().length > 1000;
 
   const formErrors = useMemo(() => {
-    const errors: Record<
-      string,
-      string
-    > = {};
+    const errors: Record<string, string> = {};
 
     if (!leaveTypeId) {
-      errors.leaveType =
-        "Select a leave type.";
+      errors.leaveType = "Select a leave type.";
     }
 
     if (!startDate) {
-      errors.startDate =
-        "Select the first day of your leave.";
+      errors.startDate = "Select the first day of your leave.";
     } else if (startDateIsInPast) {
-      errors.startDate =
-        "The start date cannot be in the past.";
+      errors.startDate = "The start date cannot be in the past.";
     }
 
     if (!endDate) {
-      errors.endDate =
-        "Select the last day of your leave.";
+      errors.endDate = "Select the last day of your leave.";
     } else if (dateRangeIsReversed) {
       errors.endDate =
         "The end date must be on or after the start date.";
@@ -479,34 +462,24 @@ export function ApplyLeave({
     }
 
     if (insufficientBalance) {
-      errors.balance =
-        `You have only ${
-          selectedLeaveType?.remainingDays ?? 0
-        } ${
-          selectedLeaveType?.remainingDays === 1
-            ? "day"
-            : "days"
-        } remaining for ${
-          selectedLeaveType?.name ??
-          "this leave type"
-        }.`;
+      errors.balance = `You have only ${
+        selectedLeaveType?.remainingDays ?? 0
+      } ${
+        selectedLeaveType?.remainingDays === 1 ? "day" : "days"
+      } remaining for ${
+        selectedLeaveType?.name ?? "this leave type"
+      }.`;
     }
 
     if (!reason.trim()) {
-      errors.reason =
-        "Provide a reason for your leave request.";
+      errors.reason = "Provide a reason for your leave request.";
     } else if (reasonTooShort) {
-      errors.reason =
-        "Please provide at least 10 characters.";
+      errors.reason = "Please provide at least 10 characters.";
     } else if (reasonTooLong) {
-      errors.reason =
-        "The reason cannot exceed 1,000 characters.";
+      errors.reason = "The reason cannot exceed 1,000 characters.";
     }
 
-    if (
-      requiresAttachment &&
-      !attachment
-    ) {
+    if (requiresAttachment && !attachment) {
       errors.attachment =
         selectedLeaveType?.attachmentDescription ??
         "An attachment is required for this leave type.";
@@ -521,6 +494,7 @@ export function ApplyLeave({
     return errors;
   }, [
     attachment,
+    capacityStatus,
     dateRangeIsReversed,
     endDate,
     insufficientBalance,
@@ -534,14 +508,12 @@ export function ApplyLeave({
     startDateIsInPast,
     workingDays,
     requiresAttachment,
-    capacityStatus,
   ]);
 
-  const hasValidationErrors =
-    Object.keys(formErrors).length > 0;
+  const hasValidationErrors = Object.keys(formErrors).length > 0;
 
   const canSubmit =
-    !isSubmitting &&
+    !effectiveIsSubmitting &&
     !hasValidationErrors &&
     Boolean(leaveTypeId) &&
     Boolean(startDate) &&
@@ -556,9 +528,7 @@ export function ApplyLeave({
   const handleAttachmentChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
-    const file =
-      event.target.files?.[0];
-
+    const file = event.target.files?.[0];
     setAttachmentError("");
 
     if (!file) {
@@ -566,31 +536,19 @@ export function ApplyLeave({
       return;
     }
 
-    if (
-      !ACCEPTED_ATTACHMENT_TYPES.includes(
-        file.type,
-      )
-    ) {
+    if (!ACCEPTED_ATTACHMENT_TYPES.includes(file.type)) {
       setAttachment(undefined);
-
       setAttachmentError(
         "Unsupported file type. Upload PDF, JPG, PNG or WebP.",
       );
-
       event.target.value = "";
-
       return;
     }
 
     if (file.size > MAX_ATTACHMENT_SIZE) {
       setAttachment(undefined);
-
-      setAttachmentError(
-        "The attachment must not exceed 10 MB.",
-      );
-
+      setAttachmentError("The attachment must not exceed 10 MB.");
       event.target.value = "";
-
       return;
     }
 
@@ -610,14 +568,11 @@ export function ApplyLeave({
     event: FormEvent<HTMLFormElement>,
   ) => {
     event.preventDefault();
-
     setValidationAttempted(true);
     setSubmitError("");
     setSubmitted(false);
 
-    if (!canSubmit) {
-      return;
-    }
+    if (!canSubmit) return;
 
     try {
       if (onSubmit) {
@@ -629,16 +584,35 @@ export function ApplyLeave({
           reason: reason.trim(),
           attachment,
         });
+      } else {
+        if (attachment) {
+          throw new Error(
+            "Supporting document upload is not configured in the current API service. The file has not been uploaded. Please remove it or contact HR before submitting.",
+          );
+        }
+
+        setInternalSubmitting(true);
+
+        try {
+          await createLeaveRequest({
+            leaveTypeId,
+            startDate,
+            endDate,
+            reason: reason.trim(),
+          });
+        } finally {
+          setInternalSubmitting(false);
+        }
       }
 
       setSubmitted(true);
     } catch (submissionError) {
-      const message =
-        submissionError instanceof Error
-          ? submissionError.message
-          : "We could not submit your leave request. Please try again.";
-
-      setSubmitError(message);
+      setSubmitError(
+        getErrorMessage(
+          submissionError,
+          "We could not submit your leave request. Please try again.",
+        ),
+      );
     }
   };
 
@@ -655,14 +629,9 @@ export function ApplyLeave({
     event: ChangeEvent<HTMLInputElement>,
   ) => {
     const value = event.target.value;
-
     setStartDate(value);
 
-    if (
-      endDate &&
-      value &&
-      endDate < value
-    ) {
+    if (endDate && value && endDate < value) {
       setEndDate("");
     }
   };
@@ -671,7 +640,7 @@ export function ApplyLeave({
      Loading
   ========================================================== */
 
-  if (isLoading) {
+  if (effectiveIsLoading) {
     return <LoadingState />;
   }
 
@@ -706,7 +675,6 @@ export function ApplyLeave({
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#d8a415] px-5 text-sm font-semibold text-white transition hover:bg-[#bf920f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
             >
               View My Leave
-
               <ArrowLeft
                 size={16}
                 className="rotate-180"
@@ -732,18 +700,13 @@ export function ApplyLeave({
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Page heading */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Link
             to="/employee"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2"
           >
-            <ArrowLeft
-              size={16}
-              aria-hidden="true"
-            />
-
+            <ArrowLeft size={16} aria-hidden="true" />
             Back to dashboard
           </Link>
 
@@ -752,14 +715,12 @@ export function ApplyLeave({
           </h1>
 
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-            Submit your leave request for manager and HR
-            approval.
+            Submit your leave request for manager and HR approval.
           </p>
         </div>
       </div>
 
-      {/* General server error */}
-      {(error || submitError) && (
+      {(effectiveError || submitError) && (
         <div
           role="alert"
           className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -772,22 +733,19 @@ export function ApplyLeave({
 
           <div className="min-w-0">
             <p className="font-semibold">
-              Unable to submit your request
+              {submitError
+                ? "Unable to submit your request"
+                : "Unable to load leave information"}
             </p>
-
             <p className="mt-1 leading-5">
-              {submitError || error}
+              {submitError || effectiveError}
             </p>
           </div>
         </div>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-      >
+      <form onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.75fr)]">
-          {/* Main form */}
           <section className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
             <div className="border-b border-slate-100 p-5 sm:p-6">
               <div className="flex items-start gap-3">
@@ -803,63 +761,37 @@ export function ApplyLeave({
                   <h2 className="text-base font-bold text-slate-900">
                     Leave Details
                   </h2>
-
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Select your leave type and the dates you
-                    need away from work.
+                    Select your leave type and the dates you need away from work.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-6 p-5 sm:p-6">
-              {/* Leave type */}
               <div>
-                <FieldLabel required>
-                  Leave Type
-                </FieldLabel>
+                <FieldLabel required>Leave Type</FieldLabel>
 
                 <div className="relative">
                   <select
                     value={leaveTypeId}
-                    onChange={(event) =>
-                      setLeaveTypeId(
-                        event.target.value,
-                      )
-                    }
+                    onChange={(event) => setLeaveTypeId(event.target.value)}
                     className={`h-12 w-full appearance-none rounded-xl border bg-white px-4 pr-11 text-sm text-slate-800 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 ${
-                      validationAttempted &&
-                      formErrors.leaveType
+                      validationAttempted && formErrors.leaveType
                         ? "border-red-300"
                         : "border-slate-200 hover:border-slate-300"
                     }`}
                     aria-invalid={
-                      validationAttempted &&
-                      Boolean(formErrors.leaveType)
+                      validationAttempted && Boolean(formErrors.leaveType)
                     }
                   >
-                    <option value="">
-                      Select leave type
-                    </option>
-
-                    {leaveTypes
-                      .filter(
-                        (leaveType) =>
-                          leaveType.isActive !==
-                          false,
-                      )
-                      .map((leaveType) => (
-                        <option
-                          key={leaveType.id}
-                          value={leaveType.id}
-                        >
-                          {leaveType.name} —{" "}
-                          {leaveType.remainingDays}{" "}
-                          {leaveType.remainingDays ===
-                          1
-                            ? "day"
-                            : "days"}{" "}
-                          remaining
+                    <option value="">Select leave type</option>
+                    {effectiveLeaveTypes
+                      .filter((type) => type.isActive !== false)
+                      .map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.name} — {type.remainingDays}{" "}
+                          {type.remainingDays === 1 ? "day" : "days"} remaining
                         </option>
                       ))}
                   </select>
@@ -880,33 +812,23 @@ export function ApplyLeave({
                 {selectedLeaveType && (
                   <div className="mt-3 flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
                     <WalletIcon />
-
                     <span className="text-xs text-slate-600">
                       Available balance:
                     </span>
-
                     <strong className="text-xs text-slate-900">
                       {selectedLeaveType.remainingDays}{" "}
-                      {selectedLeaveType.remainingDays ===
-                      1
-                        ? "day"
-                        : "days"}
+                      {selectedLeaveType.remainingDays === 1 ? "day" : "days"}
                     </strong>
                   </div>
                 )}
 
                 {validationAttempted && (
-                  <FormError
-                    message={formErrors.leaveType}
-                  />
+                  <FormError message={formErrors.leaveType} />
                 )}
               </div>
 
-              {/* Dates */}
               <div>
-                <FieldLabel required>
-                  Leave Dates
-                </FieldLabel>
+                <FieldLabel required>Leave Dates</FieldLabel>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
@@ -923,34 +845,25 @@ export function ApplyLeave({
                         className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                         aria-hidden="true"
                       />
-
                       <input
                         id="leave-start-date"
                         type="date"
                         min={today}
                         value={startDate}
-                        onChange={
-                          handleStartDateChange
-                        }
+                        onChange={handleStartDateChange}
                         className={`h-12 w-full rounded-xl border bg-white pl-11 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 ${
-                          validationAttempted &&
-                          formErrors.startDate
+                          validationAttempted && formErrors.startDate
                             ? "border-red-300"
                             : "border-slate-200 hover:border-slate-300"
                         }`}
                         aria-invalid={
-                          validationAttempted &&
-                          Boolean(formErrors.startDate)
+                          validationAttempted && Boolean(formErrors.startDate)
                         }
                       />
                     </div>
 
                     {validationAttempted && (
-                      <FormError
-                        message={
-                          formErrors.startDate
-                        }
-                      />
+                      <FormError message={formErrors.startDate} />
                     )}
                   </div>
 
@@ -968,48 +881,32 @@ export function ApplyLeave({
                         className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                         aria-hidden="true"
                       />
-
                       <input
                         id="leave-end-date"
                         type="date"
-                        min={
-                          startDate || today
-                        }
+                        min={startDate || today}
                         value={endDate}
-                        onChange={(event) =>
-                          setEndDate(
-                            event.target.value,
-                          )
-                        }
+                        onChange={(event) => setEndDate(event.target.value)}
                         className={`h-12 w-full rounded-xl border bg-white pl-11 pr-3 text-sm text-slate-800 outline-none transition focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 ${
-                          validationAttempted &&
-                          formErrors.endDate
+                          validationAttempted && formErrors.endDate
                             ? "border-red-300"
                             : "border-slate-200 hover:border-slate-300"
                         }`}
                         aria-invalid={
-                          validationAttempted &&
-                          Boolean(formErrors.endDate)
+                          validationAttempted && Boolean(formErrors.endDate)
                         }
                       />
                     </div>
 
                     {validationAttempted && (
-                      <FormError
-                        message={
-                          formErrors.endDate
-                        }
-                      />
+                      <FormError message={formErrors.endDate} />
                     )}
                   </div>
                 </div>
 
-                {validationAttempted &&
-                  formErrors.dates && (
-                    <FormError
-                      message={formErrors.dates}
-                    />
-                  )}
+                {validationAttempted && formErrors.dates && (
+                  <FormError message={formErrors.dates} />
+                )}
 
                 {startDate &&
                   endDate &&
@@ -1022,55 +919,41 @@ export function ApplyLeave({
                           className="text-emerald-600"
                           aria-hidden="true"
                         />
-
                         <span className="text-xs font-medium text-emerald-800">
                           Working days
                         </span>
                       </div>
-
                       <strong className="text-sm text-emerald-800">
-                        {workingDays}{" "}
-                        {workingDays === 1
-                          ? "day"
-                          : "days"}
+                        {workingDays} {workingDays === 1 ? "day" : "days"}
                       </strong>
                     </div>
                   )}
               </div>
 
-              {/* Balance warning */}
-              {validationAttempted &&
-                insufficientBalance && (
-                  <div
-                    role="alert"
-                    className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
-                  >
-                    <AlertCircle
-                      size={19}
-                      className="mt-0.5 shrink-0 text-red-600"
-                      aria-hidden="true"
-                    />
-
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-red-800">
-                        Insufficient leave balance
-                      </p>
-
-                      <p className="mt-1 text-xs leading-5 text-red-700">
-                        {formErrors.balance}
-                      </p>
-                    </div>
+              {validationAttempted && insufficientBalance && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4"
+                >
+                  <AlertCircle
+                    size={19}
+                    className="mt-0.5 shrink-0 text-red-600"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-red-800">
+                      Insufficient leave balance
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-red-700">
+                      {formErrors.balance}
+                    </p>
                   </div>
-                )}
+                </div>
+              )}
 
-              {/* Capacity warning */}
               {capacityStatus?.wouldExceedCapacity && (
                 <div
-                  role={
-                    isCapacityBlocked
-                      ? "alert"
-                      : "status"
-                  }
+                  role={isCapacityBlocked ? "alert" : "status"}
                   className={`flex items-start gap-3 rounded-xl border p-4 ${
                     isCapacityBlocked
                       ? "border-red-200 bg-red-50"
@@ -1080,55 +963,41 @@ export function ApplyLeave({
                   <AlertTriangle
                     size={19}
                     className={`mt-0.5 shrink-0 ${
-                      isCapacityBlocked
-                        ? "text-red-600"
-                        : "text-amber-600"
+                      isCapacityBlocked ? "text-red-600" : "text-amber-600"
                     }`}
                     aria-hidden="true"
                   />
-
                   <div className="min-w-0">
                     <p
                       className={`text-sm font-semibold ${
-                        isCapacityBlocked
-                          ? "text-red-800"
-                          : "text-amber-800"
+                        isCapacityBlocked ? "text-red-800" : "text-amber-800"
                       }`}
                     >
                       {isCapacityBlocked
                         ? "Department capacity limit reached"
                         : "Department capacity warning"}
                     </p>
-
                     <p
                       className={`mt-1 text-xs leading-5 ${
-                        isCapacityBlocked
-                          ? "text-red-700"
-                          : "text-amber-700"
+                        isCapacityBlocked ? "text-red-700" : "text-amber-700"
                       }`}
                     >
                       {capacityStatus.message ??
                         `There are currently ${capacityStatus.currentApprovedCount} approved overlapping leave requests out of the configured maximum of ${capacityStatus.maximumAllowed}.`}
                     </p>
-
                     {!isCapacityBlocked && (
                       <p className="mt-2 text-xs font-medium text-amber-800">
-                        You may still submit the request.
-                        The manager will see this warning
-                        during approval.
+                        You may still submit the request. The manager will see
+                        this warning during approval.
                       </p>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* Reason */}
               <div>
                 <div className="flex items-center justify-between gap-3">
-                  <FieldLabel required>
-                    Reason
-                  </FieldLabel>
-
+                  <FieldLabel required>Reason</FieldLabel>
                   <span
                     className={`text-[11px] ${
                       reason.length > 1000
@@ -1142,54 +1011,40 @@ export function ApplyLeave({
 
                 <textarea
                   value={reason}
-                  onChange={(event) =>
-                    setReason(event.target.value)
-                  }
+                  onChange={(event) => setReason(event.target.value)}
                   rows={6}
                   maxLength={1000}
                   placeholder="Explain briefly why you are requesting this leave..."
                   className={`w-full resize-y rounded-xl border bg-white px-4 py-3 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#c89b20] focus:ring-2 focus:ring-[#c89b20]/10 ${
-                    validationAttempted &&
-                    formErrors.reason
+                    validationAttempted && formErrors.reason
                       ? "border-red-300"
                       : "border-slate-200 hover:border-slate-300"
                   }`}
                   aria-invalid={
-                    validationAttempted &&
-                    Boolean(formErrors.reason)
+                    validationAttempted && Boolean(formErrors.reason)
                   }
                 />
 
                 {validationAttempted && (
-                  <FormError
-                    message={formErrors.reason}
-                  />
+                  <FormError message={formErrors.reason} />
                 )}
               </div>
 
-              {/* Attachment */}
               <div>
-                <FieldLabel
-                  required={requiresAttachment}
-                >
+                <FieldLabel required={requiresAttachment}>
                   Supporting Document
                 </FieldLabel>
 
                 <p className="mb-3 text-xs leading-5 text-slate-500">
-                  Upload a supporting document when
-                  required by your organization's leave
-                  policy. Maximum size: 10 MB.
+                  Upload a supporting document when required by your
+                  organization's leave policy. Maximum size: 10 MB.
                 </p>
 
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={
-                    ACCEPTED_ATTACHMENT_EXTENSIONS
-                  }
-                  onChange={
-                    handleAttachmentChange
-                  }
+                  accept={ACCEPTED_ATTACHMENT_EXTENSIONS}
+                  onChange={handleAttachmentChange}
                   className="sr-only"
                   id="leave-attachment"
                 />
@@ -1200,16 +1055,11 @@ export function ApplyLeave({
                     className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center transition hover:border-[#c89b20] hover:bg-amber-50/30 focus-within:border-[#c89b20] focus-within:ring-2 focus-within:ring-[#c89b20]/10"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm">
-                      <Paperclip
-                        size={19}
-                        aria-hidden="true"
-                      />
+                      <Paperclip size={19} aria-hidden="true" />
                     </div>
-
                     <span className="mt-3 text-sm font-semibold text-slate-700">
                       Choose a supporting document
                     </span>
-
                     <span className="mt-1 text-xs text-slate-500">
                       PDF, JPG, PNG or WebP
                     </span>
@@ -1217,64 +1067,51 @@ export function ApplyLeave({
                 ) : (
                   <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm">
-                      <FileText
-                        size={19}
-                        aria-hidden="true"
-                      />
+                      <FileText size={19} aria-hidden="true" />
                     </div>
-
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-800">
                         {attachment.name}
                       </p>
-
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {formatFileSize(
-                          attachment.size,
-                        )}
+                        {formatFileSize(attachment.size)}
                       </p>
                     </div>
-
                     <button
                       type="button"
-                      onClick={
-                        removeAttachment
-                      }
+                      onClick={removeAttachment}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20]"
                       aria-label="Remove attachment"
                       title="Remove attachment"
                     >
-                      <X
-                        size={17}
-                        aria-hidden="true"
-                      />
+                      <X size={17} aria-hidden="true" />
                     </button>
                   </div>
                 )}
 
                 {(attachmentError ||
-                  (validationAttempted &&
-                    formErrors.attachment)) && (
+                  (validationAttempted && formErrors.attachment)) && (
                   <FormError
-                    message={
-                      attachmentError ||
-                      formErrors.attachment
-                    }
+                    message={attachmentError || formErrors.attachment}
                   />
+                )}
+
+                {!onSubmit && attachment && (
+                  <p className="mt-2 text-xs leading-5 text-amber-700">
+                    The current API service does not provide file upload.
+                    This file will not be sent with the request.
+                  </p>
                 )}
               </div>
             </div>
           </section>
 
-          {/* Summary / policy panel */}
           <aside className="space-y-6">
-            {/* Request summary */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
               <div className="border-b border-slate-100 p-5">
                 <h2 className="text-base font-bold text-slate-900">
                   Request Summary
                 </h2>
-
                 <p className="mt-1 text-xs leading-5 text-slate-500">
                   Review the details before submitting.
                 </p>
@@ -1283,68 +1120,40 @@ export function ApplyLeave({
               <div className="space-y-4 p-5">
                 <SummaryRow
                   label="Leave type"
-                  value={
-                    selectedLeaveType?.name ??
-                    "Not selected"
-                  }
+                  value={selectedLeaveType?.name ?? "Not selected"}
                 />
-
                 <SummaryRow
                   label="Start date"
-                  value={
-                    startDate
-                      ? formatDate(startDate)
-                      : "Not selected"
-                  }
+                  value={startDate ? formatDate(startDate) : "Not selected"}
                 />
-
                 <SummaryRow
                   label="End date"
-                  value={
-                    endDate
-                      ? formatDate(endDate)
-                      : "Not selected"
-                  }
+                  value={endDate ? formatDate(endDate) : "Not selected"}
                 />
-
                 <SummaryRow
                   label="Working days"
                   value={
                     workingDays > 0
-                      ? `${workingDays} ${
-                          workingDays === 1
-                            ? "day"
-                            : "days"
-                        }`
+                      ? `${workingDays} ${workingDays === 1 ? "day" : "days"}`
                       : "—"
                   }
-                  emphasize={
-                    workingDays > 0
-                  }
+                  emphasize={workingDays > 0}
                 />
 
                 {selectedLeaveType && (
                   <SummaryRow
                     label="Balance after request"
                     value={
-                      workingDays <=
-                      selectedLeaveType.remainingDays
-                        ? `${
-                            selectedLeaveType.remainingDays -
-                            workingDays
-                          } ${
-                            selectedLeaveType.remainingDays -
-                              workingDays ===
-                            1
+                      workingDays <= selectedLeaveType.remainingDays
+                        ? `${selectedLeaveType.remainingDays - workingDays} ${
+                            selectedLeaveType.remainingDays - workingDays === 1
                               ? "day"
                               : "days"
                           }`
                         : "Insufficient balance"
                     }
                     valueClassName={
-                      insufficientBalance
-                        ? "text-red-600"
-                        : "text-slate-900"
+                      insufficientBalance ? "text-red-600" : "text-slate-900"
                     }
                   />
                 )}
@@ -1356,20 +1165,17 @@ export function ApplyLeave({
                       className="mt-0.5 shrink-0 text-emerald-600"
                       aria-hidden="true"
                     />
-
                     <p className="text-xs leading-5 text-slate-500">
-                      Your request will follow your
-                      organization's approval workflow.
-                      Approval does not automatically
-                      mean the leave is finalized until all
-                      required approval stages are complete.
+                      Your request will follow your organization's approval
+                      workflow. Approval does not automatically mean the leave
+                      is finalized until all required approval stages are
+                      complete.
                     </p>
                   </div>
                 </div>
               </div>
             </section>
 
-            {/* Leave policy information */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/40">
               <div className="border-b border-slate-100 p-5">
                 <div className="flex items-center gap-2">
@@ -1378,7 +1184,6 @@ export function ApplyLeave({
                     className="text-[#a47700]"
                     aria-hidden="true"
                   />
-
                   <h2 className="text-base font-bold text-slate-900">
                     Before you submit
                   </h2>
@@ -1387,72 +1192,57 @@ export function ApplyLeave({
 
               <div className="space-y-3 p-5">
                 <PolicyItem>
-                  Weekends are excluded from working-day
-                  calculations.
+                  Weekends are excluded from working-day calculations.
                 </PolicyItem>
-
                 <PolicyItem>
-                  Public holidays configured by HR are
-                  excluded automatically.
+                  Public holidays configured by HR are excluded automatically.
                 </PolicyItem>
-
                 <PolicyItem>
-                  Your available leave balance is checked
-                  before submission.
+                  Your available leave balance is checked before submission.
                 </PolicyItem>
-
                 <PolicyItem>
-                  Overlapping leave requests are checked by
-                  the system.
+                  Overlapping leave requests are checked by the system.
                 </PolicyItem>
-
                 <PolicyItem>
-                  Department leave capacity may generate a
-                  warning or block approval depending on HR
-                  policy.
+                  Department leave capacity may generate a warning or block
+                  approval depending on HR policy.
                 </PolicyItem>
-
                 <PolicyItem>
-                  Your manager or department head reviews
-                  the request before HR final approval.
+                  Your manager or department head reviews the request before HR
+                  final approval.
                 </PolicyItem>
               </div>
             </section>
 
-            {/* Submit actions */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/40">
-              {validationAttempted &&
-                hasValidationErrors && (
-                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                    <AlertTriangle
-                      size={17}
-                      className="mt-0.5 shrink-0 text-amber-600"
-                      aria-hidden="true"
-                    />
-
-                    <p className="text-xs leading-5 text-amber-800">
-                      Please correct the highlighted
-                      fields before submitting your request.
-                    </p>
-                  </div>
-                )}
+              {validationAttempted && hasValidationErrors && (
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <AlertTriangle
+                    size={17}
+                    className="mt-0.5 shrink-0 text-amber-600"
+                    aria-hidden="true"
+                  />
+                  <p className="text-xs leading-5 text-amber-800">
+                    Please correct the highlighted fields before submitting
+                    your request.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={
-                  isSubmitting ||
-                  (validationAttempted &&
-                    hasValidationErrors)
+                  effectiveIsSubmitting ||
+                  (validationAttempted && hasValidationErrors)
                 }
                 className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#d8a415] px-5 text-sm font-bold text-white shadow-sm transition hover:bg-[#bf920f] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSubmitting ? (
+                {effectiveIsSubmitting ? (
                   <>
                     <span
                       className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"
                       aria-hidden="true"
                     />
-
                     Submitting...
                   </>
                 ) : (
@@ -1462,7 +1252,6 @@ export function ApplyLeave({
                       strokeWidth={2}
                       aria-hidden="true"
                     />
-
                     Submit Leave Request
                   </>
                 )}
@@ -1471,7 +1260,7 @@ export function ApplyLeave({
               <button
                 type="button"
                 onClick={handleCancel}
-                disabled={isSubmitting}
+                disabled={effectiveIsSubmitting}
                 className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c89b20] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Cancel
@@ -1501,10 +1290,7 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <span className="text-xs text-slate-500">
-        {label}
-      </span>
-
+      <span className="text-xs text-slate-500">{label}</span>
       <span
         className={`max-w-[60%] text-right text-xs ${
           emphasize
@@ -1518,11 +1304,7 @@ function SummaryRow({
   );
 }
 
-function PolicyItem({
-  children,
-}: {
-  children: ReactNode;
-}) {
+function PolicyItem({ children }: { children: ReactNode }) {
   return (
     <div className="flex items-start gap-2.5">
       <CheckCircle2
@@ -1530,10 +1312,7 @@ function PolicyItem({
         className="mt-0.5 shrink-0 text-emerald-500"
         aria-hidden="true"
       />
-
-      <p className="text-xs leading-5 text-slate-600">
-        {children}
-      </p>
+      <p className="text-xs leading-5 text-slate-600">{children}</p>
     </div>
   );
 }
@@ -1552,8 +1331,10 @@ function WalletIcon() {
       aria-hidden="true"
       className="shrink-0 text-slate-500"
     >
-      <path d="M20 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v8a2 2 0 0 1-2 2H5a3 3 0 0 1-2-3V7" />
+      <path d="M20 7V6a2 2 0 0 0-2-2H5a3 3 0 0 0 0 6h15v8a2 2 0 0 1-2 2H5a3 3 0 0 1-3-3V7" />
       <path d="M16 14h.01" />
     </svg>
   );
 }
+
+export default ApplyLeave;

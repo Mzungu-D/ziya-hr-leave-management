@@ -24,6 +24,7 @@ import holidayRoutes from "./routes/holiday.routes.js";
 import systemSettingsRoutes from "./routes/systemSettings.routes.js";
 import auditLogRoutes from "./routes/audit-log.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import onboardingRoutes from "./routes/onboarding.routes.js";
 
 import { csrfProtection } from "./middleware/csrf.middleware.js";
 import {
@@ -84,13 +85,13 @@ app.use(
       "OPTIONS",
     ],
     allowedHeaders: [
-  "Accept",
-  "Authorization",
-  "Cache-Control",
-  "Content-Type",
-  "X-CSRF-Token",
-  "X-Requested-With",
-],
+      "Accept",
+      "Authorization",
+      "Cache-Control",
+      "Content-Type",
+      "X-CSRF-Token",
+      "X-Requested-With",
+    ],
     optionsSuccessStatus: 204,
   }),
 );
@@ -365,6 +366,22 @@ app.use("/api/notifications", notificationRoutes);
 
 /**
  * ============================================================================
+ * EMPLOYEE ONBOARDING
+ * ============================================================================
+ *
+ * Existing prefix: /api/onboarding
+ *
+ * The onboarding router must enforce authentication, employee ownership,
+ * HR-only operations, and organization scope derived from the authenticated
+ * employee's database record.
+ *
+ * Register before notFoundHandler so onboarding requests reach this router.
+ */
+
+app.use("/api/onboarding", onboardingRoutes);
+
+/**
+ * ============================================================================
  * NOT FOUND
  * ============================================================================
  *
@@ -384,4 +401,3 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 export default app;
-

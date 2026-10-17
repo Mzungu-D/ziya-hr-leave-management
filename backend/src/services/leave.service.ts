@@ -2410,3 +2410,266 @@ export async function cancelLeaveRequest(
     normalizedRequestId,
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Manager Team Calendar                                                      */
+/* -------------------------------------------------------------------------- */
+
+export async function listManagerTeamLeave(
+  organizationId: string,
+  actorId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  const normalizedOrganizationId = requireId(
+    organizationId,
+    "Organization ID",
+    "ORGANIZATION_ID_REQUIRED",
+  );
+
+  const actor = await getEmployeeInOrganization(
+    normalizedOrganizationId,
+    actorId,
+  );
+
+  if (
+    !["MANAGER", "HR_ADMIN", "SUPER_ADMIN"].includes(actor.role)
+  ) {
+    throw new AppError(
+      403,
+      "Manager access is required.",
+      "MANAGER_ACCESS_REQUIRED",
+    );
+  }
+
+  let rangeStart: Date | null = null;
+  let rangeEnd: Date | null = null;
+
+  if (startDate) {
+    rangeStart = startOfUtcDay(parseDate(startDate, "Start date"));
+  }
+
+  if (endDate) {
+    rangeEnd = startOfUtcDay(parseDate(endDate, "End date"));
+  }
+
+  if (
+    rangeStart &&
+    rangeEnd &&
+    rangeEnd.getTime() < rangeStart.getTime()
+  ) {
+    throw new AppError(
+      400,
+      "End date cannot be before start date.",
+      "INVALID_LEAVE_DATE_RANGE",
+    );
+  }
+
+  const requests = await db.orm.public.LeaveRequest
+    .include("employee")
+    .include("department")
+    .include("leaveType")
+    .include("approvals")
+    .all();
+
+  return (requests as DbRecord[])
+    .filter((request) => {
+      const employee = request.employee;
+
+      if (
+        employee?.organizationId !== normalizedOrganizationId ||
+        !employee ||
+        employee.status !== "ACTIVE"
+      ) {
+        return false;
+      }
+
+      const isManagerTeamMember =
+        request.employee?.reportsToId === actor.id ||
+        request.department?.departmentLeadId === actor.id;
+
+      if (!isManagerTeamMember) {
+        return false;
+      }
+
+      // Only leave that has received final HR approval is scheduled leave.
+      if (request.status !== "HR_APPROVED") {
+        return false;
+      }
+
+      const requestStart = startOfUtcDay(
+        new Date(request.startDate),
+      ).getTime();
+
+      const requestEnd = startOfUtcDay(
+        new Date(request.endDate),
+      ).getTime();
+
+      if (
+        rangeStart &&
+        requestEnd < rangeStart.getTime()
+      ) {
+        return false;
+      }
+
+      if (
+        rangeEnd &&
+        requestStart > rangeEnd.getTime()
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .map((request) => toPublicRequest(request));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Manager Leave Reports                                                      */
+/* -------------------------------------------------------------------------- */
+
+export async function getManagerLeaveReport(
+  organizationId: string,
+  actorId: string,
+  startDate?: string,
+  endDate?: string,
+) {
+  const requests = await db.orm.public.LeaveRequest
+    .include("employee")
+    .include("department")
+    .include("leaveType")
+    .include("approvals")
+    .all();
+
+  const normalizedOrganizationId = requireId(
+    organizationId,
+    "Organization ID",
+    "ORGANIZATION_ID_REQUIRED",
+  );
+
+  const actor = await getEmployeeInOrganization(
+    normalizedOrganizationId,
+    actorId,
+  );
+
+  if (
+    !["MANAGER", "HR_ADMIN", "SUPER_ADMIN"].includes(actor.role)
+  ) {
+    throw new AppError(
+      403,
+      "Manager access is required.",
+      "MANAGER_ACCESS_REQUIRED",
+    );
+  }
+
+  let rangeStart: Date | null = null;
+  let rangeEnd: Date | null = null;
+
+  if (startDate) {
+    rangeStart = startOfUtcDay(parseDate(startDate, "Start date"));
+  }
+
+  if (endDate) {
+    rangeEnd = startOfUtcDay(parseDate(endDate, "End date"));
+  }
+
+  if (
+    rangeStart &&
+    rangeEnd &&
+    rangeEnd.getTime() < rangeStart.getTime()
+  ) {
+    throw new AppError(
+      400,
+      "End date cannot be before start date.",
+      "INVALID_LEAVE_DATE_RANGE",
+    );
+  }
+
+  const teamRequests = (requests as DbRecord[]).filter((request) => {
+    const employee = request.employee;
+
+    if (
+      employee?.organizationId !== normalizedOrganizationId ||
+      !employee ||
+      employee.status !== "ACTIVE"
+    ) {
+      return false;
+    }
+
+    const isManagerTeamMember =
+      request.employee?.reportsToId === actor.id ||
+      request.department?.departmentLeadId === actor.id;
+
+    if (!isManagerTeamMember) {
+      return false;
+    }
+
+    const requestStart = startOfUtcDay(
+      new Date(request.startDate),
+    ).getTime();
+
+    const requestEnd = startOfUtcDay(
+      new Date(request.endDate),
+    ).getTime();
+
+    if (
+      rangeStart &&
+      requestEnd < rangeStart.getTime()
+    ) {
+      return false;
+    }
+
+    if (
+      rangeEnd &&
+      requestStart > rangeEnd.getTime()
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+
+  const byStatus: Record<string, number> = {};
+  const byLeaveType: Record<
+    string,
+    { requests: number; requestedDays: number; approvedDays: number }
+  > = {};
+
+  let totalRequestedDays = 0;
+  let totalApprovedDays = 0;
+
+  for (const request of teamRequests) {
+    const status = String(request.status);
+    const leaveTypeName =
+      request.leaveType?.name ?? "Unknown leave type";
+    const requestedDays = Number(request.requestedDays) || 0;
+
+    byStatus[status] = (byStatus[status] ?? 0) + 1;
+
+    if (!byLeaveType[leaveTypeName]) {
+      byLeaveType[leaveTypeName] = {
+        requests: 0,
+        requestedDays: 0,
+        approvedDays: 0,
+      };
+    }
+
+    byLeaveType[leaveTypeName].requests += 1;
+    byLeaveType[leaveTypeName].requestedDays += requestedDays;
+
+    totalRequestedDays += requestedDays;
+
+    if (status === "HR_APPROVED") {
+      byLeaveType[leaveTypeName].approvedDays += requestedDays;
+      totalApprovedDays += requestedDays;
+    }
+  }
+
+  return {
+    totalRequests: teamRequests.length,
+    totalRequestedDays,
+    totalApprovedDays,
+    byStatus,
+    byLeaveType,
+  };
+}
