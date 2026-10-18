@@ -10,12 +10,15 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+
 import type { FormEvent, ReactNode } from "react";
+
 import {
   Navigate,
   useLocation,
   useNavigate,
 } from "react-router-dom";
+
 import {
   useEffect,
   useMemo,
@@ -1079,7 +1082,7 @@ export function Login() {
         </p>
 
         <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          Sign in to Ziya HR
+          Sign in to Ziya People
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -1365,7 +1368,7 @@ export function Login() {
           loadingText="Verifying..."
           disabled={otp.length !== 6}
         >
-          Verify &amp; continue
+          Verify & continue
         </LoadingButton>
       </form>
 
@@ -1786,8 +1789,8 @@ export function Login() {
           {/* Cover image */}
           <img
             src={leaveManagementCover}
-            alt="Ziya HR leave management workspace"
-            className="absolute inset-0 h-full w-full object-cover object-center"
+            alt="Ziya People leave management workspace"
+            className="absolute inset-0 h-full w-full object-contain object-center"
           />
 
           {/* Professional brand overlay */}
@@ -1814,7 +1817,7 @@ export function Login() {
 
                 <div>
                   <div className="text-2xl font-bold tracking-tight text-white">
-                    Ziya HR
+                    Ziya People
                   </div>
 
                   <div className="mt-1 text-[10px] font-semibold tracking-[0.2em] text-slate-200">
@@ -1838,23 +1841,22 @@ export function Login() {
                 </h1>
 
                 <p className="mt-6 max-w-xl text-base leading-7 text-slate-200 xl:text-lg">
-                  Manage leave, employees,
-                  approvals, policies and
-                  workforce information through
-                  one secure HR platform.
+                  A simpler way to manage leave,
+                  support employees, and keep
+                  your team connected.
                 </p>
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
-                    Leave Management
+                    Employee self-service
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
-                    Employee Management
+                    Clear approval workflows
                   </div>
 
                   <div className="rounded-xl border border-white/10 bg-white/10 px-4 py-2.5 text-xs font-semibold text-white backdrop-blur-md">
-                    Approvals &amp; Policies
+                    People-first experience
                   </div>
                 </div>
               </div>
@@ -1892,7 +1894,7 @@ export function Login() {
 
               <div>
                 <div className="text-xl font-bold tracking-tight text-[#071a35]">
-                  Ziya HR
+                  Ziya People
                 </div>
 
                 <div className="text-[8px] font-semibold tracking-[0.16em] text-slate-500">
@@ -1906,15 +1908,15 @@ export function Login() {
               <div className="relative h-40 overflow-hidden sm:h-48">
                 <img
                   src={leaveManagementCover}
-                  alt="Ziya HR leave management"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  alt="Ziya People leave management"
+                  className="absolute inset-0 h-full w-full object-contain object-center"
                 />
 
                 <div className="absolute inset-0 bg-[#071a35]/45" />
 
                 <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f1c43b]">
-                    Ziya HR
+                    Ziya People
                   </p>
 
                   <p className="mt-1 text-lg font-bold text-white sm:text-xl">
@@ -1929,7 +1931,7 @@ export function Login() {
             </div>
 
             <p className="mt-5 text-center text-xs leading-5 text-slate-400">
-              Your access is protected by Ziya HR
+              Your access is protected by Ziya People
               security controls. Never share your
               password or verification code with
               anyone.

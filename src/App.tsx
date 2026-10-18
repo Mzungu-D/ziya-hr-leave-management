@@ -1,6 +1,6 @@
-﻿
-import {
+﻿import {
   BrowserRouter,
+  Link,
   Navigate,
   Route,
   Routes,
@@ -58,6 +58,86 @@ import { HelpSupport } from "./pages/HelpSupport";
 
 import Notifications from "./pages/Notifications";
 
+import ziyaLogo from "./assets/zayi.jpg";
+
+import leaveManagementCover from "./assets/LEAVE.png";
+
+/* ============================================================
+   PUBLIC WELCOME PAGE
+============================================================ */
+
+function WelcomePage() {
+  return (
+    <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#071a35]">
+      {/* Full cover image.
+          object-contain preserves the complete original image
+          without cropping or stretching it. */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <img
+          src={leaveManagementCover}
+          alt="Ziya People welcome cover"
+          className="h-full w-full object-contain object-center"
+        />
+      </div>
+
+      {/* Subtle background treatment behind the image */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[#071a35]/10"
+        aria-hidden="true"
+      />
+
+      {/* Welcome page header */}
+      <header className="relative z-10 flex w-full items-center justify-between gap-4 px-5 py-4 sm:px-8 sm:py-6 lg:px-12">
+        <Link
+          to="/"
+          aria-label="Ziya People home"
+          className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#d8a415] focus-visible:ring-offset-2 focus-visible:ring-offset-[#071a35]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg sm:h-11 sm:w-11">
+            <img
+              src={ziyaLogo}
+              alt="Ziya logo"
+              className="h-full w-full object-contain"
+            />
+          </span>
+
+          <span className="min-w-0">
+            <span className="block truncate text-base font-bold tracking-tight text-white sm:text-lg">
+              Ziya People
+            </span>
+
+            <span className="hidden text-[10px] font-semibold tracking-[0.18em] text-slate-200 sm:block">
+              PEOPLE · TIME · TOGETHER
+            </span>
+          </span>
+        </Link>
+
+        {/* Small sign-in button */}
+        <Link
+          to="/login"
+          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-white/30 bg-[#d8a415] px-4 py-2 text-sm font-semibold text-[#071a35] shadow-md transition-colors hover:bg-[#edbd36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#071a35] sm:px-5"
+        >
+          Sign in
+        </Link>
+      </header>
+
+      {/* Accessible page description */}
+      <section className="sr-only" aria-label="Welcome to Ziya People">
+        <h1>Welcome to Ziya People</h1>
+        <p>
+          Your employee leave management workspace.
+          Sign in to continue to your account.
+        </p>
+        <Link to="/login">Sign in to Ziya People</Link>
+      </section>
+    </main>
+  );
+}
+
+/* ============================================================
+   APPLICATION ROUTES
+============================================================ */
+
 function App() {
   return (
     <BrowserRouter>
@@ -67,6 +147,13 @@ function App() {
               PUBLIC ROUTES
           ====================================================== */}
 
+          {/* Public welcome page */}
+          <Route
+            path="/"
+            element={<WelcomePage />}
+          />
+
+          {/* Existing authentication flow */}
           <Route
             path="/login"
             element={<Login />}
@@ -169,7 +256,9 @@ function App() {
           <Route
             path="/manager/calendar"
             element={
-              <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
                 <AppShell>
                   <ManagerCalendar />
                 </AppShell>
@@ -180,7 +269,9 @@ function App() {
           <Route
             path="/manager/reports"
             element={
-              <ProtectedRoute allowedRoles={["MANAGER"]}>
+              <ProtectedRoute
+                allowedRoles={["MANAGER"]}
+              >
                 <AppShell>
                   <ManagerReports />
                 </AppShell>
@@ -410,7 +501,7 @@ function App() {
           />
 
           {/* =====================================================
-              NOTIFICATIONS
+              EMPLOYEE NOTIFICATIONS
           ====================================================== */}
 
           <Route
@@ -426,6 +517,10 @@ function App() {
             }
           />
 
+          {/* =====================================================
+              MANAGER NOTIFICATIONS
+          ====================================================== */}
+
           <Route
             path="/manager/notifications"
             element={
@@ -438,6 +533,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* =====================================================
+              HR / ADMIN NOTIFICATIONS
+          ====================================================== */}
 
           <Route
             path="/admin/notifications"
@@ -478,20 +577,6 @@ function App() {
           />
 
           {/* =====================================================
-              APPLICATION ROOT
-          ====================================================== */}
-
-          <Route
-            path="/"
-            element={
-              <Navigate
-                to="/login"
-                replace
-              />
-            }
-          />
-
-          {/* =====================================================
               UNKNOWN ROUTES
           ====================================================== */}
 
@@ -511,4 +596,3 @@ function App() {
 }
 
 export default App;
-
