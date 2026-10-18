@@ -1081,9 +1081,20 @@ export function Login() {
           Welcome back
         </p>
 
-        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          Sign in to Ziya People and Culture
-        </h2>
+        <div className="mt-2 flex items-center gap-2">
+          <h2 className="font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Sign in to Ziya People and Culture
+          </h2>
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            aria-label="Back to welcome page"
+            title="Back to welcome page"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a415]"
+          >
+            <ArrowLeft size={15} aria-hidden="true" />
+          </button>
+        </div>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
           Use your registered email or phone
@@ -1806,16 +1817,7 @@ export function Login() {
           {/* Brand content */}
           <div className="relative z-10 flex min-h-screen w-full flex-col justify-between p-8 xl:p-12 2xl:p-14">
             <div>
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                aria-label="Back to welcome page"
-                className="mb-8 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1c43b]"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                <span>Back</span>
-              </button>
-              <div className="flex items-center gap-4">
+<div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-2xl">
                   <img
                     src={ziyaLogo}

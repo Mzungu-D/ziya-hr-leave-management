@@ -103,13 +103,12 @@ function WelcomePage() {
           </span>
 
           <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Your people.
-            <span className="block text-[#f1c43b]">Your culture.</span>
-            <span className="block">One connected workspace.</span>
+            Empowering people.
+            <span className="block text-[#f1c43b]">Building stronger organisations.</span>
           </h1>
 
           <p className="mt-6 max-w-xl text-base leading-7 text-slate-200 sm:text-lg">
-            A simpler place to manage leave, support employees, and keep your team connected.
+            One secure workspace for leave management, employee services, and connected teams.
           </p>
 
           <Link
@@ -121,7 +120,7 @@ function WelcomePage() {
         </section>
 
         <footer className="text-xs font-medium tracking-wide text-white/75">
-          Ziya People and Culture · People first, always.
+          Ziya People and Culture · People first. Always.
         </footer>
       </div>
     </main>
