@@ -67,16 +67,14 @@ import leaveManagementCover from "./assets/LEAVE.png";
 function WelcomePage() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-[#071a35]">
-      {/* Original cover artwork.
-          object-contain preserves the complete image without
-          cropping or stretching it. */}
+      {/* Full-screen original cover artwork. */}
       <img
         src={leaveManagementCover}
         alt="Ziya People welcome page"
-        className="absolute inset-0 h-full w-full object-contain object-center"
+        className="absolute inset-0 h-full w-full object-cover object-center"
       />
 
-      {/* Small, separate sign-in action */}
+      {/* Sign-in action */}
       <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-6">
         <Link
           to="/login"
@@ -107,6 +105,45 @@ function WelcomePage() {
 }
 
 /* ============================================================
+   LOGIN PAGE WITH RETURN NAVIGATION
+
+   The existing Login component remains responsible for
+   authentication, OTP verification and password recovery.
+============================================================ */
+
+function LoginPage() {
+  return (
+    <>
+      <Link
+        to="/"
+        aria-label="Back to welcome page"
+        title="Back to welcome page"
+        className="fixed left-4 top-4 z-[100] inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200/80 bg-white/95 px-4 py-2 text-sm font-semibold text-[#071a35] shadow-md backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a415] sm:left-6 sm:top-6"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="h-4 w-4"
+        >
+          <path
+            d="M19 12H5m0 0 7-7m-7 7 7 7"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+
+        <span>Back</span>
+      </Link>
+
+      <Login />
+    </>
+  );
+}
+
+/* ============================================================
    APPLICATION ROUTES
 ============================================================ */
 
@@ -125,10 +162,10 @@ function App() {
             element={<WelcomePage />}
           />
 
-          {/* Existing authentication flow */}
+          {/* Existing authentication flow with back navigation */}
           <Route
             path="/login"
-            element={<Login />}
+            element={<LoginPage />}
           />
 
           {/* =====================================================
