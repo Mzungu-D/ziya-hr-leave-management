@@ -1,4 +1,4 @@
-﻿import {
+import {
   BrowserRouter,
   Link,
   Navigate,
@@ -59,6 +59,7 @@ import { HelpSupport } from "./pages/HelpSupport";
 import Notifications from "./pages/Notifications";
 
 import leaveManagementCover from "./assets/LEAVE.png";
+import ziyaLogo from "./assets/zayi.jpg";
 
 /* ============================================================
    PUBLIC WELCOME PAGE
@@ -66,44 +67,66 @@ import leaveManagementCover from "./assets/LEAVE.png";
 
 function WelcomePage() {
   return (
-    <main className="relative min-h-screen w-full overflow-hidden bg-[#071a35]">
-      {/* Full-screen original cover artwork. */}
+    <main className="relative flex min-h-screen w-full items-center overflow-hidden bg-[#071a35]">
       <img
         src={leaveManagementCover}
-        alt="Ziya People welcome page"
+        alt=""
+        aria-hidden="true"
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
 
-      {/* Sign-in action */}
-      <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-6">
-        <Link
-          to="/login"
-          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#d8a415] px-5 py-2 text-sm font-semibold text-[#071a35] shadow-lg transition-colors hover:bg-[#edbd36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#071a35]"
-        >
-          Sign in
-        </Link>
+      <div className="absolute inset-0 bg-gradient-to-r from-[#071a35]/95 via-[#071a35]/70 to-[#071a35]/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#071a35]/60 via-transparent to-[#071a35]/20" />
+
+      <div className="relative z-10 flex min-h-screen w-full flex-col p-6 sm:p-10 lg:p-14">
+        <header className="flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg">
+            <img
+              src={ziyaLogo}
+              alt="Ziya logo"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <div>
+            <p className="text-lg font-bold tracking-tight text-white sm:text-xl">
+              Ziya People and Culture
+            </p>
+            <p className="mt-1 text-[10px] font-semibold tracking-[0.2em] text-slate-200">
+              PEOPLE · CULTURE · GROWTH
+            </p>
+          </div>
+        </header>
+
+        <section className="my-auto max-w-2xl py-16">
+          <span className="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#f1c43b] backdrop-blur">
+            Employee experience
+          </span>
+
+          <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+            Your people.
+            <span className="block text-[#f1c43b]">Your culture.</span>
+            <span className="block">One connected workspace.</span>
+          </h1>
+
+          <p className="mt-6 max-w-xl text-base leading-7 text-slate-200 sm:text-lg">
+            A simpler place to manage leave, support employees, and keep your team connected.
+          </p>
+
+          <Link
+            to="/login"
+            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-xl bg-[#d8a415] px-7 py-3 font-semibold text-[#071a35] shadow-lg transition-colors hover:bg-[#edbd36] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#071a35]"
+          >
+            Sign in to continue
+          </Link>
+        </section>
+
+        <footer className="text-xs font-medium tracking-wide text-white/75">
+          Ziya People and Culture · People first, always.
+        </footer>
       </div>
-
-      {/* Accessible page description */}
-      <section
-        className="sr-only"
-        aria-label="Welcome to Ziya People"
-      >
-        <h1>Welcome to Ziya People</h1>
-
-        <p>
-          Your employee leave management workspace.
-          Sign in to continue to your account.
-        </p>
-
-        <Link to="/login">
-          Sign in to Ziya People
-        </Link>
-      </section>
     </main>
   );
 }
-
 /* ============================================================
    LOGIN PAGE WITH RETURN NAVIGATION
 

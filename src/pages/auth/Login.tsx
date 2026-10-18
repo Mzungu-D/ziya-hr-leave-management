@@ -1082,7 +1082,7 @@ export function Login() {
         </p>
 
         <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          Sign in to Ziya People
+          Sign in to Ziya People and Culture
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -1789,7 +1789,7 @@ export function Login() {
           {/* Cover image */}
           <img
             src={leaveManagementCover}
-            alt="Ziya People leave management workspace"
+            alt="Ziya People and Culture leave management workspace"
             className="absolute inset-0 h-full w-full object-contain object-center"
           />
 
@@ -1806,6 +1806,15 @@ export function Login() {
           {/* Brand content */}
           <div className="relative z-10 flex min-h-screen w-full flex-col justify-between p-8 xl:p-12 2xl:p-14">
             <div>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                aria-label="Back to welcome page"
+                className="mb-8 inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f1c43b]"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span>Back</span>
+              </button>
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-2xl">
                   <img
@@ -1817,7 +1826,7 @@ export function Login() {
 
                 <div>
                   <div className="text-2xl font-bold tracking-tight text-white">
-                    Ziya People
+                    Ziya People and Culture
                   </div>
 
                   <div className="mt-1 text-[10px] font-semibold tracking-[0.2em] text-slate-200">
@@ -1894,7 +1903,7 @@ export function Login() {
 
               <div>
                 <div className="text-xl font-bold tracking-tight text-[#071a35]">
-                  Ziya People
+                  Ziya People and Culture
                 </div>
 
                 <div className="text-[8px] font-semibold tracking-[0.16em] text-slate-500">
@@ -1908,7 +1917,7 @@ export function Login() {
               <div className="relative h-40 overflow-hidden sm:h-48">
                 <img
                   src={leaveManagementCover}
-                  alt="Ziya People leave management"
+                  alt="Ziya People and Culture leave management"
                   className="absolute inset-0 h-full w-full object-contain object-center"
                 />
 
@@ -1916,7 +1925,7 @@ export function Login() {
 
                 <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f1c43b]">
-                    Ziya People
+                    Ziya People and Culture
                   </p>
 
                   <p className="mt-1 text-lg font-bold text-white sm:text-xl">
@@ -1931,7 +1940,7 @@ export function Login() {
             </div>
 
             <p className="mt-5 text-center text-xs leading-5 text-slate-400">
-              Your access is protected by Ziya People
+              Your access is protected by Ziya People and Culture
               security controls. Never share your
               password or verification code with
               anyone.
