@@ -633,9 +633,6 @@ async function request<T>(
 
       "Cache-Control":
         "no-store",
-
-      Pragma:
-        "no-cache",
     };
 
     let body: string | undefined;
