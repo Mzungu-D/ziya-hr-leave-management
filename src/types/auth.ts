@@ -1,4 +1,4 @@
-export type UserRole =
+﻿export type UserRole =
   | "EMPLOYEE"
   | "MANAGER"
   | "HR_ADMIN"
@@ -65,6 +65,7 @@ export interface LoginCredentials {
 }
 
 export interface LoginResponse {
+  requiresOtp?: boolean;
   user: AuthenticatedUser;
 
   accessToken: string;

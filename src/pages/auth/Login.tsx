@@ -1,4 +1,4 @@
-import {
+﻿import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
@@ -691,12 +691,7 @@ export function Login() {
             password,
           );
 
-        if (
-          response.authenticationMethod ===
-            "OTP" ||
-          response.authenticationMethod ===
-            "PASSWORD_AND_OTP"
-        ) {
+        if (response.requiresOtp === true) {
           setSuccess(
             "We've sent a verification code to your registered contact.",
           );
@@ -772,12 +767,7 @@ export function Login() {
           password,
         );
 
-      if (
-        response.authenticationMethod ===
-          "OTP" ||
-        response.authenticationMethod ===
-          "PASSWORD_AND_OTP"
-      ) {
+      if (response.requiresOtp === true) {
         setSuccess(
           "We've sent a verification code to your registered phone.",
         );

@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -464,12 +464,7 @@ export function AuthProvider({
        * Do not mark the user as authenticated until
        * the OTP has been successfully verified.
        */
-      if (
-        response.authenticationMethod ===
-          "OTP" ||
-        response.authenticationMethod ===
-          "PASSWORD_AND_OTP"
-      ) {
+      if (response.requiresOtp === true) {
         const destination =
           getVerificationDestination(
             response,

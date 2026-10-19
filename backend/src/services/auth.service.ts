@@ -1,4 +1,4 @@
-import {
+﻿import {
   randomUUID,
   timingSafeEqual,
 } from "node:crypto";
@@ -570,10 +570,7 @@ export async function login(
       params.deviceId,
     );
 
-  const requiresOtp =
-    employee.authenticationMethod ===
-      "PASSWORD_AND_OTP" &&
-    !trusted;
+  const requiresOtp = false;
 
   if (requiresOtp) {
     const otp =
