@@ -92,7 +92,7 @@ function WelcomePage() {
               Ziya People and Culture
             </p>
             <p className="mt-1 text-[10px] font-semibold tracking-[0.2em] text-slate-200">
-              PEOPLE Â· CULTURE Â· GROWTH
+              PEOPLE · CULTURE · GROWTH
             </p>
           </div>
         </header>
@@ -120,7 +120,7 @@ function WelcomePage() {
         </section>
 
         <footer className="text-xs font-medium tracking-wide text-white/75">
-          Ziya People and Culture Â· People first. Always.
+          Ziya People and Culture · People first. Always.
         </footer>
       </div>
     </main>
