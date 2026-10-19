@@ -3,7 +3,7 @@ import type {
   Response,
 } from "express";
 
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * --------------------------------------------------------------------------
@@ -69,7 +69,7 @@ export const profilePictureUploadRateLimit =
        * This fallback prevents all unauthenticated requests from sharing
        * one undefined key if middleware ordering is accidentally changed.
        */
-      return `ip:${req.ip ?? "unknown"}`;
+      return req.ip ? `ip:${ipKeyGenerator(req.ip)}` : "ip:unknown";
     },
 
     handler: (
