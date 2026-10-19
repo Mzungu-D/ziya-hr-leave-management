@@ -58,7 +58,7 @@ import { HelpSupport } from "./pages/HelpSupport";
 
 import Notifications from "./pages/Notifications";
 
-import leaveManagementCover from "./assets/Manake .png";
+import leaveManagementCover from "./assets/Manake.png";
 import ziyaLogo from "./assets/zayi.jpg";
 
 /* ============================================================
@@ -603,3 +603,5 @@ function App() {
 }
 
 export default App;
+
+
