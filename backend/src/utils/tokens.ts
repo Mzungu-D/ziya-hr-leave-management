@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+﻿import jwt from "jsonwebtoken";
 
 import { env } from "../config/env.js";
 
@@ -107,10 +107,15 @@ export function signRefreshToken(
     "sessionId",
   );
 
-  const normalizedTtlDays = assertPositiveInteger(
-    ttlDays,
-    "REFRESH_TOKEN_TTL_DAYS",
-  );
+  if (!Number.isFinite(ttlDays) || ttlDays <= 0) {
+    throw new Error("Refresh token lifetime must be positive.");
+  }
+
+  const ttlSeconds = Math.round(ttlDays * 24 * 60 * 60);
+
+  if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0) {
+    throw new Error("Refresh token lifetime is invalid.");
+  }
 
   return jwt.sign(
     {
@@ -120,7 +125,7 @@ export function signRefreshToken(
     },
     env.JWT_REFRESH_SECRET,
     {
-      expiresIn: `${normalizedTtlDays}d`,
+      expiresIn: ttlSeconds,
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
       algorithm: "HS256",
