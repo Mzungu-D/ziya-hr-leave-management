@@ -1,4 +1,4 @@
-import {
+﻿import {
   BrowserRouter,
   Link,
   Navigate,
@@ -92,7 +92,7 @@ function WelcomePage() {
               Ziya People and Culture
             </p>
             <p className="mt-1 text-[10px] font-semibold tracking-[0.2em] text-slate-200">
-              PEOPLE · CULTURE · GROWTH
+              PEOPLE Â· CULTURE Â· GROWTH
             </p>
           </div>
         </header>
@@ -120,7 +120,7 @@ function WelcomePage() {
         </section>
 
         <footer className="text-xs font-medium tracking-wide text-white/75">
-          Ziya People and Culture · People first. Always.
+          Ziya People and Culture Â· People first. Always.
         </footer>
       </div>
     </main>
@@ -136,30 +136,6 @@ function WelcomePage() {
 function LoginPage() {
   return (
     <>
-      <Link
-        to="/"
-        aria-label="Back to welcome page"
-        title="Back to welcome page"
-        className="fixed left-4 top-4 z-[100] inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200/80 bg-white/95 px-4 py-2 text-sm font-semibold text-[#071a35] shadow-md backdrop-blur transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d8a415] sm:left-6 sm:top-6"
-      >
-        <svg
-          aria-hidden="true"
-          viewBox="0 0 24 24"
-          fill="none"
-          className="h-4 w-4"
-        >
-          <path
-            d="M19 12H5m0 0 7-7m-7 7 7 7"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-
-        <span>Back</span>
-      </Link>
-
       <Login />
     </>
   );
@@ -234,7 +210,7 @@ function App() {
           />
 
           {/* =====================================================
-              MANAGER WORKSPACE — DASHBOARD
+              MANAGER WORKSPACE â€” DASHBOARD
           ====================================================== */}
 
           <Route
@@ -251,7 +227,7 @@ function App() {
           />
 
           {/* =====================================================
-              MANAGER WORKSPACE — LEAVE APPROVALS
+              MANAGER WORKSPACE â€” LEAVE APPROVALS
           ====================================================== */}
 
           <Route
@@ -268,7 +244,7 @@ function App() {
           />
 
           {/* =====================================================
-              MANAGER WORKSPACE — MY TEAM
+              MANAGER WORKSPACE â€” MY TEAM
           ====================================================== */}
 
           <Route
@@ -331,7 +307,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — EMPLOYEES
+              HR / ADMIN â€” EMPLOYEES
           ====================================================== */}
 
           <Route
@@ -351,7 +327,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE MANAGEMENT
+              HR / ADMIN â€” LEAVE MANAGEMENT
           ====================================================== */}
 
           <Route
@@ -371,7 +347,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE TYPES
+              HR / ADMIN â€” LEAVE TYPES
           ====================================================== */}
 
           <Route
@@ -391,7 +367,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — LEAVE APPROVALS
+              HR / ADMIN â€” LEAVE APPROVALS
               HR MAKES THE FINAL DECISION
           ====================================================== */}
 
@@ -412,7 +388,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — POLICIES
+              HR / ADMIN â€” POLICIES
           ====================================================== */}
 
           <Route
@@ -432,7 +408,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — DEPARTMENTS
+              HR / ADMIN â€” DEPARTMENTS
           ====================================================== */}
 
           <Route
@@ -452,7 +428,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — HOLIDAYS & CALENDAR
+              HR / ADMIN â€” HOLIDAYS & CALENDAR
           ====================================================== */}
 
           <Route
@@ -472,7 +448,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — REPORTS & ANALYTICS
+              HR / ADMIN â€” REPORTS & ANALYTICS
           ====================================================== */}
 
           <Route
@@ -492,7 +468,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — SYSTEM SETTINGS
+              HR / ADMIN â€” SYSTEM SETTINGS
           ====================================================== */}
 
           <Route
@@ -512,7 +488,7 @@ function App() {
           />
 
           {/* =====================================================
-              HR / ADMIN — AUDIT LOGS
+              HR / ADMIN â€” AUDIT LOGS
           ====================================================== */}
 
           <Route
