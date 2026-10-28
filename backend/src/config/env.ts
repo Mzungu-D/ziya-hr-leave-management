@@ -7,20 +7,14 @@ import { z } from "zod";
  * Environment configuration
  * --------------------------------------------------------------------------
  *
- * All runtime configuration is validated before the application starts.
- *
- * This prevents the API from running with missing, malformed, or unsafe
- * production configuration.
+ * Runtime configuration is validated before the application starts.
+ * Invalid or unsafe production configuration prevents startup.
  */
 
 const envSchema = z
   .object({
     NODE_ENV: z
-      .enum([
-        "development",
-        "test",
-        "production",
-      ])
+      .enum(["development", "test", "production"])
       .default("development"),
 
     PORT: z.coerce
@@ -40,22 +34,17 @@ const envSchema = z
       .trim()
       .url(),
 
+    /**
+     * Database
+     */
     DATABASE_URL: z
       .string()
       .trim()
       .min(1),
 
     /**
-     * ----------------------------------------------------------------------
      * Railway Bucket / S3-compatible object storage
-     * ----------------------------------------------------------------------
-     *
-     * Used for employee profile pictures and employee documents.
-     *
-     * These values are intentionally required at application startup.
-     * The application must not start with partially configured storage.
      */
-
     S3_ENDPOINT: z
       .string()
       .trim()
@@ -80,6 +69,9 @@ const envSchema = z
       .trim()
       .min(1),
 
+    /**
+     * Authentication secrets
+     */
     JWT_ACCESS_SECRET: z
       .string()
       .min(32),
@@ -137,14 +129,19 @@ const envSchema = z
       .max(60)
       .default(30),
 
+    /**
+     * Cookie policy
+     *
+     * "none" is required for cross-site cookie-based authentication.
+     * Browsers require Secure cookies when SameSite=None is used.
+     */
     COOKIE_SAME_SITE: z
-      .enum([
-        "strict",
-        "lax",
-        "none",
-      ])
+      .enum(["strict", "lax", "none"])
       .default("lax"),
 
+    /**
+     * SMTP
+     */
     SMTP_HOST: z
       .string()
       .trim()
@@ -172,168 +169,138 @@ const envSchema = z
       .email()
       .optional(),
   })
-  .superRefine(
-    (config, context) => {
-      /**
-       * --------------------------------------------------------------------
-       * Production security requirements
-       * --------------------------------------------------------------------
-       */
+  .superRefine((config, context) => {
+    /**
+     * Production security requirements
+     */
+    if (config.NODE_ENV === "production") {
+      if (
+        config.JWT_ACCESS_SECRET ===
+        config.JWT_REFRESH_SECRET
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["JWT_REFRESH_SECRET"],
+          message:
+            "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production.",
+        });
+      }
 
       if (
-        config.NODE_ENV ===
-        "production"
+        config.JWT_ACCESS_SECRET
+          .toLowerCase()
+          .includes("change-me")
       ) {
-        if (
-          config.COOKIE_SAME_SITE ===
-          "none"
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "COOKIE_SAME_SITE",
-            ],
-            message:
-              "COOKIE_SAME_SITE=none requires an explicitly trusted cross-site deployment and must not be enabled accidentally in production.",
-          });
-        }
-
-        if (
-          config.JWT_ACCESS_SECRET ===
-          config.JWT_REFRESH_SECRET
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "JWT_REFRESH_SECRET",
-            ],
-            message:
-              "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different in production.",
-          });
-        }
-
-        if (
-          config.JWT_ACCESS_SECRET
-            .toLowerCase()
-            .includes(
-              "change-me",
-            )
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "JWT_ACCESS_SECRET",
-            ],
-            message:
-              "A production JWT access secret must not contain a placeholder value.",
-          });
-        }
-
-        if (
-          config.JWT_REFRESH_SECRET
-            .toLowerCase()
-            .includes(
-              "change-me",
-            )
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "JWT_REFRESH_SECRET",
-            ],
-            message:
-              "A production JWT refresh secret must not contain a placeholder value.",
-          });
-        }
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["JWT_ACCESS_SECRET"],
+          message:
+            "A production JWT access secret must not contain a placeholder value.",
+        });
       }
 
-      /**
-       * --------------------------------------------------------------------
-       * SMTP consistency
-       * --------------------------------------------------------------------
-       *
-       * If SMTP is configured, all required SMTP credentials must exist.
-       */
-
-      const smtpConfigured =
-        Boolean(
-          config.SMTP_HOST ||
-            config.SMTP_USER ||
-            config.SMTP_PASSWORD ||
-            config.SMTP_FROM,
-        );
-
-      if (smtpConfigured) {
-        if (
-          !config.SMTP_HOST
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "SMTP_HOST",
-            ],
-            message:
-              "SMTP_HOST is required when SMTP delivery is configured.",
-          });
-        }
-
-        if (
-          !config.SMTP_USER
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "SMTP_USER",
-            ],
-            message:
-              "SMTP_USER is required when SMTP delivery is configured.",
-          });
-        }
-
-        if (
-          !config.SMTP_PASSWORD
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "SMTP_PASSWORD",
-            ],
-            message:
-              "SMTP_PASSWORD is required when SMTP delivery is configured.",
-          });
-        }
-
-        if (
-          !config.SMTP_FROM
-        ) {
-          context.addIssue({
-            code:
-              z.ZodIssueCode
-                .custom,
-            path: [
-              "SMTP_FROM",
-            ],
-            message:
-              "SMTP_FROM is required when SMTP delivery is configured.",
-          });
-        }
+      if (
+        config.JWT_REFRESH_SECRET
+          .toLowerCase()
+          .includes("change-me")
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["JWT_REFRESH_SECRET"],
+          message:
+            "A production JWT refresh secret must not contain a placeholder value.",
+        });
       }
-    },
-  );
+    }
+
+    /**
+     * SameSite=None requires HTTPS and production cookie security.
+     *
+     * Both URLs are parsed by Zod before this validation runs.
+     */
+    if (config.COOKIE_SAME_SITE === "none") {
+      let appUsesHttps = false;
+      let apiUsesHttps = false;
+
+      try {
+        appUsesHttps =
+          new URL(config.APP_URL).protocol === "https:";
+      } catch {
+        appUsesHttps = false;
+      }
+
+      try {
+        apiUsesHttps =
+          new URL(config.API_URL).protocol === "https:";
+      } catch {
+        apiUsesHttps = false;
+      }
+
+      if (
+        config.NODE_ENV !== "production" ||
+        !appUsesHttps ||
+        !apiUsesHttps
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["COOKIE_SAME_SITE"],
+          message:
+            "COOKIE_SAME_SITE=none requires production mode and HTTPS for both APP_URL and API_URL.",
+        });
+      }
+    }
+
+    /**
+     * SMTP consistency
+     *
+     * If any SMTP setting is supplied, all required SMTP credentials
+     * must be supplied.
+     */
+    const smtpConfigured = Boolean(
+      config.SMTP_HOST ||
+        config.SMTP_USER ||
+        config.SMTP_PASSWORD ||
+        config.SMTP_FROM,
+    );
+
+    if (smtpConfigured) {
+      if (!config.SMTP_HOST) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SMTP_HOST"],
+          message:
+            "SMTP_HOST is required when SMTP delivery is configured.",
+        });
+      }
+
+      if (!config.SMTP_USER) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SMTP_USER"],
+          message:
+            "SMTP_USER is required when SMTP delivery is configured.",
+        });
+      }
+
+      if (!config.SMTP_PASSWORD) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SMTP_PASSWORD"],
+          message:
+            "SMTP_PASSWORD is required when SMTP delivery is configured.",
+        });
+      }
+
+      if (!config.SMTP_FROM) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SMTP_FROM"],
+          message:
+            "SMTP_FROM is required when SMTP delivery is configured.",
+        });
+      }
+    }
+  });
 
 /**
  * --------------------------------------------------------------------------
@@ -341,20 +308,12 @@ const envSchema = z
  * --------------------------------------------------------------------------
  */
 
-const parsed =
-  envSchema.safeParse(
-    process.env,
-  );
+const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error(
-    "Invalid environment configuration:",
-  );
+  console.error("Invalid environment configuration:");
 
-  for (
-    const issue of
-      parsed.error.issues
-  ) {
+  for (const issue of parsed.error.issues) {
     console.error(
       `- ${issue.path.join(".")}: ${issue.message}`,
     );
@@ -369,16 +328,9 @@ if (!parsed.success) {
  * --------------------------------------------------------------------------
  * Immutable runtime configuration
  * --------------------------------------------------------------------------
- *
- * Configuration is parsed once and then reused throughout the application.
- * This prevents individual modules from reading process.env independently
- * and bypassing validation.
  */
 
-export const env =
-  Object.freeze(
-    parsed.data,
-  );
+export const env = Object.freeze(parsed.data);
 
 /**
  * --------------------------------------------------------------------------
@@ -387,13 +339,10 @@ export const env =
  */
 
 export const isProduction =
-  env.NODE_ENV ===
-  "production";
+  env.NODE_ENV === "production";
 
 export const isDevelopment =
-  env.NODE_ENV ===
-  "development";
+  env.NODE_ENV === "development";
 
 export const isTest =
-  env.NODE_ENV ===
-  "test";
+  env.NODE_ENV === "test";
