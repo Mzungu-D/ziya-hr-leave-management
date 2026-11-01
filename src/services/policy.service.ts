@@ -205,6 +205,60 @@ async function readResponseBody(
   }
 }
 
+// CHANGED: the API wraps results as { success, data }.
+// Return only `data` so the validators receive the payload, not the envelope.
+function unwrapEnvelope(
+  body: unknown,
+): unknown {
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body)
+  ) {
+    const record = body as Record<
+      string,
+      unknown
+    >;
+
+    if (
+      "success" in record &&
+      "data" in record
+    ) {
+      return record.data;
+    }
+  }
+
+  return body;
+}
+
+// CHANGED: accept a bare array or a list wrapped under a known key.
+function extractList(
+  value: unknown,
+  keys: string[],
+): unknown {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    const record = value as Record<
+      string,
+      unknown
+    >;
+
+    for (const key of keys) {
+      if (Array.isArray(record[key])) {
+        return record[key];
+      }
+    }
+  }
+
+  return value;
+}
+
 function extractError(
   body: unknown,
   fallback: string,
@@ -300,10 +354,17 @@ function assertPolicy(
   return policy as Policy;
 }
 
+// CHANGED: accepts a bare array or { policies | items | results: [...] }
 function assertPolicyList(
   value: unknown,
 ): Policy[] {
-  if (!Array.isArray(value)) {
+  const list = extractList(value, [
+    "policies",
+    "items",
+    "results",
+  ]);
+
+  if (!Array.isArray(list)) {
     throw new PolicyServiceError(
       "Invalid policy list response from the server.",
       502,
@@ -311,7 +372,9 @@ function assertPolicyList(
     );
   }
 
-  return value.map(assertPolicy);
+  return list.map((item) =>
+    assertPolicy(item),
+  );
 }
 
 function assertPolicySummary(
@@ -435,7 +498,10 @@ async function request<T>(
       );
     }
 
-    return body as T;
+    // CHANGED: return the unwrapped `data`, not the { success, data } envelope
+    return unwrapEnvelope(
+      body,
+    ) as T;
   } catch (error) {
     if (
       error instanceof PolicyServiceError

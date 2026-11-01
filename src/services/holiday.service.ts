@@ -290,6 +290,66 @@ async function readResponseBody(
   }
 }
 
+// CHANGED: the API wraps results as { success, data }.
+// Return only `data` so the validators receive the payload, not the envelope.
+function unwrapEnvelope(
+  body: unknown,
+): unknown {
+  if (
+    body &&
+    typeof body === "object" &&
+    !Array.isArray(body)
+  ) {
+    const record =
+      body as Record<
+        string,
+        unknown
+      >;
+
+    if (
+      "success" in record &&
+      "data" in record
+    ) {
+      return record.data;
+    }
+  }
+
+  return body;
+}
+
+// CHANGED: accept a bare array or a list wrapped under a known key.
+function extractList(
+  value: unknown,
+  keys: string[],
+): unknown {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === "object"
+  ) {
+    const record =
+      value as Record<
+        string,
+        unknown
+      >;
+
+    for (const key of keys) {
+      if (
+        Array.isArray(
+          record[key],
+        )
+      ) {
+        return record[key];
+      }
+    }
+  }
+
+  return value;
+}
+
 function extractError(
   body: unknown,
   fallback: string,
@@ -414,11 +474,21 @@ function assertHoliday(
   return holiday as Holiday;
 }
 
+// CHANGED: accepts a bare array or { holidays | items | results: [...] }
 function assertHolidayList(
   value: unknown,
 ): Holiday[] {
+  const list = extractList(
+    value,
+    [
+      "holidays",
+      "items",
+      "results",
+    ],
+  );
+
   if (
-    !Array.isArray(value)
+    !Array.isArray(list)
   ) {
     throw new HolidayServiceError(
       "Invalid holiday list response from the server.",
@@ -427,8 +497,9 @@ function assertHolidayList(
     );
   }
 
-  return value.map(
-    assertHoliday,
+  return list.map(
+    (item) =>
+      assertHoliday(item),
   );
 }
 
@@ -594,7 +665,10 @@ async function request<T>(
       );
     }
 
-    return body as T;
+    // CHANGED: return the unwrapped `data`, not the { success, data } envelope
+    return unwrapEnvelope(
+      body,
+    ) as T;
   } catch (error) {
     if (
       error instanceof

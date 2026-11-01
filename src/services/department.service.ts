@@ -464,6 +464,30 @@ function isDepartmentArray(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Department List Response Validation                                        */
+/* -------------------------------------------------------------------------- */
+
+// CHANGED: the backend returns { departments, total } for GET /api/departments
+interface DepartmentListPayload {
+  departments: Department[];
+  total?: number;
+}
+
+// CHANGED: accepts either the wrapper object or a bare array
+function isDepartmentListResponse(
+  value: unknown,
+): value is Department[] | DepartmentListPayload {
+  if (isDepartmentArray(value)) {
+    return true;
+  }
+
+  return (
+    isRecord(value) &&
+    isDepartmentArray(value.departments)
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Response Parser                                                            */
 /* -------------------------------------------------------------------------- */
 
@@ -1161,10 +1185,13 @@ function prepareUpdatePayload(
 /* List Departments                                                           */
 /* -------------------------------------------------------------------------- */
 
+// CHANGED: accepts { departments, total } or a bare array, returns Department[]
 export async function listDepartments(
   options: DepartmentRequestOptions = {},
 ): Promise<Department[]> {
-  return request<Department[]>(
+  const data = await request<
+    Department[] | DepartmentListPayload
+  >(
     DEPARTMENT_ENDPOINTS.collection,
     {
       method: "GET",
@@ -1173,9 +1200,13 @@ export async function listDepartments(
         options.signal,
 
       validator:
-        isDepartmentArray,
+        isDepartmentListResponse,
     },
   );
+
+  return Array.isArray(data)
+    ? data
+    : data.departments;
 }
 
 /* -------------------------------------------------------------------------- */

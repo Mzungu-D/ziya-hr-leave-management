@@ -262,6 +262,82 @@ function validateQuery(query: ReportsQuery): void {
   }
 }
 
+// CHANGED: helpers that map the backend response shape to the shape the UI expects
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value)
+  );
+}
+
+function normalizeReportsData(raw: unknown): unknown {
+  if (!isRecord(raw)) {
+    return raw;
+  }
+
+  // The backend may send `period` or `dateRange`.
+  const range: Record<string, unknown> = isRecord(raw.period)
+    ? raw.period
+    : isRecord(raw.dateRange)
+      ? raw.dateRange
+      : {};
+
+  const toDate = (value: unknown): string =>
+    typeof value === "string" ? value.slice(0, 10) : "";
+
+  const from = toDate(range.from ?? range.start ?? range.startDate);
+  const to = toDate(range.to ?? range.end ?? range.endDate);
+
+  const yearCandidate = Number(
+    range.year ?? raw.year ?? (from ? from.slice(0, 4) : Number.NaN),
+  );
+
+  const year = Number.isInteger(yearCandidate)
+    ? yearCandidate
+    : new Date().getFullYear();
+
+  // The type requires `workforce` to be an array.
+  let workforce: unknown[] = [];
+
+  if (Array.isArray(raw.workforce)) {
+    workforce = raw.workforce;
+  } else if (isRecord(raw.workforce)) {
+    const nested = Object.values(raw.workforce).find((item) =>
+      Array.isArray(item),
+    );
+
+    workforce = Array.isArray(nested) ? nested : [];
+  }
+
+  // The page formats this with Intl.DateTimeFormat, which throws if invalid.
+  const generatedAt =
+    typeof raw.generatedAt === "string" &&
+    !Number.isNaN(new Date(raw.generatedAt).getTime())
+      ? raw.generatedAt
+      : new Date().toISOString();
+
+  return {
+    ...raw,
+    period: { year, from, to },
+    workforce,
+    generatedAt,
+  };
+}
+
+function normalizeReportsPayload(payload: unknown): unknown {
+  if (!isRecord(payload) || !("data" in payload)) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    data: normalizeReportsData(payload.data),
+  };
+}
+
 function validateReportsResponse(
   payload: unknown,
 ): asserts payload is ApiResponse<ReportsAnalytics> & {
@@ -293,8 +369,9 @@ function validateReportsResponse(
     !Array.isArray(data.employeeReport) ||
     !Array.isArray(data.leaveStatusReport)
   ) {
+    // CHANGED: names the fields the server actually sent
     throw new Error(
-      "The reports response is incomplete.",
+      `The reports response is incomplete (received: ${Object.keys(data).join(", ")}).`,
     );
   }
 }
@@ -357,9 +434,12 @@ async function requestReports(
       );
     }
 
-    validateReportsResponse(payload);
+    // CHANGED: normalize the backend shape before validating
+    const normalized: unknown = normalizeReportsPayload(payload);
 
-    return payload.data;
+    validateReportsResponse(normalized);
+
+    return normalized.data;
   } catch (error) {
     if (isAbortError(error)) {
       if (signal?.aborted) {
