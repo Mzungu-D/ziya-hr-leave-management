@@ -22,6 +22,7 @@
  * PATCH  /api/employees/:employeeId/reporting-manager
  * PATCH  /api/employees/:employeeId/role
  * PATCH  /api/employees/:employeeId/status
+ * DELETE /api/employees/:employeeId
  */
 
 /* ========================================================================== */
@@ -1319,6 +1320,45 @@ export async function updateEmployeeStatus(
 }
 
 /* ========================================================================== */
+/* DELETE EMPLOYEE                                                            */
+/* ========================================================================== */
+
+// CHANGED: new function.
+/**
+ * Permanently deletes an employee from the authenticated
+ * user's organization.
+ *
+ * The backend remains authoritative and refuses the request when:
+ * - the employee is the caller's own account
+ * - the employee is the last active SUPER_ADMIN
+ * - the employee still has direct reports
+ * - the employee has related records (for example leave history)
+ *
+ * In those cases the thrown error carries a code such as
+ * EMPLOYEE_HAS_RELATED_RECORDS so the UI can offer deactivation instead.
+ */
+export async function deleteEmployee(
+  employeeId: string,
+  options: EmployeeRequestOptions = {},
+): Promise<EmployeePublicRecord> {
+  const id =
+    validateEmployeeId(
+      employeeId,
+    );
+
+  return request<EmployeePublicRecord>(
+    EMPLOYEE_ENDPOINTS.item(id),
+    {
+      method: "DELETE",
+
+      signal: options.signal,
+
+      validator: isEmployee,
+    },
+  );
+}
+
+/* ========================================================================== */
 /* DEPARTMENT-LEAD ELIGIBILITY                                                */
 /* ========================================================================== */
 
@@ -1449,6 +1489,9 @@ export const employeeService = {
   assignRole,
 
   updateEmployeeStatus,
+
+  // CHANGED: added
+  deleteEmployee,
 
   getEligibleDepartmentLeads,
 

@@ -109,6 +109,12 @@ export interface UpdateEmployeeParams {
   authenticationMethod?: EmployeeAuthenticationMethod;
 }
 
+// CHANGED: identifies who is performing a delete
+export interface DeleteEmployeeActor {
+  employeeId: string;
+  role: EmployeeRole;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Validation constants                                                       */
 /* -------------------------------------------------------------------------- */
@@ -820,6 +826,32 @@ function translateEmployeeConstraintError(
   throw error;
 }
 
+// CHANGED: detects database foreign-key violations (linked records exist)
+function isForeignKeyViolation(
+  error: unknown,
+): boolean {
+  if (
+    typeof error === "object" &&
+    error !== null
+  ) {
+    const code =
+      (error as { code?: unknown }).code;
+
+    if (code === "23503") {
+      return true;
+    }
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : "";
+
+  return /foreign key|23503/i.test(
+    message,
+  );
+}
+
 /* -------------------------------------------------------------------------- */
 /* Employee listing                                                           */
 /* -------------------------------------------------------------------------- */
@@ -1461,4 +1493,133 @@ export async function updateAccountStatus(
       status,
     },
   );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Employee deletion                                                          */
+/* -------------------------------------------------------------------------- */
+
+// CHANGED: new function.
+/**
+ * Permanently delete an employee.
+ *
+ * Employees with leave history or other linked records are protected by the
+ * database. In that case the caller is told to deactivate the account.
+ */
+export async function deleteEmployee(
+  organizationId: string,
+  id: string,
+  actor: DeleteEmployeeActor,
+): Promise<EmployeePublicRecord> {
+  const normalizedOrganizationId =
+    requireOrganizationId(
+      organizationId,
+    );
+
+  const normalizedId =
+    requireEntityId(
+      id,
+      "Employee ID",
+      "EMPLOYEE_ID_REQUIRED",
+    );
+
+  const existing =
+    await findEmployeeById(
+      normalizedOrganizationId,
+      normalizedId,
+    );
+
+  if (!existing) {
+    throw new AppError(
+      404,
+      "Employee not found.",
+      "EMPLOYEE_NOT_FOUND",
+    );
+  }
+
+  if (existing.id === actor.employeeId) {
+    throw new AppError(
+      409,
+      "You cannot delete your own account.",
+      "CANNOT_DELETE_SELF",
+    );
+  }
+
+  if (
+    existing.role === "SUPER_ADMIN" &&
+    actor.role !== "SUPER_ADMIN"
+  ) {
+    throw new AppError(
+      403,
+      "Only a SUPER_ADMIN can delete a SUPER_ADMIN account.",
+      "SUPER_ADMIN_DELETE_FORBIDDEN",
+    );
+  }
+
+  /*
+   * Deleting is treated as the employee losing their role and access, so the
+   * last active SUPER_ADMIN is protected.
+   */
+  await ensureSuperAdminContinuity(
+    normalizedOrganizationId,
+    {
+      id: existing.id,
+      role: existing.role,
+      status: existing.status,
+    },
+    "EMPLOYEE",
+    "INACTIVE",
+  );
+
+  const directReports =
+    await db.orm.public.Employee
+      .where({
+        organizationId:
+          normalizedOrganizationId,
+
+        reportsToId:
+          existing.id,
+      })
+      .all();
+
+  if (directReports.length > 0) {
+    throw new AppError(
+      409,
+      `This employee manages ${directReports.length} other employee(s). Reassign their reporting manager before deleting.`,
+      "EMPLOYEE_HAS_DIRECT_REPORTS",
+    );
+  }
+
+  try {
+    /*
+     * Session rows reference the employee, so they are removed first.
+     */
+    await db.orm.public.UserSession
+      .where({
+        employeeId:
+          existing.id,
+      })
+      .deleteAll();
+
+    await db.orm.public.Employee
+      .where({
+        id: existing.id,
+
+        organizationId:
+          normalizedOrganizationId,
+      })
+      .delete();
+  } catch (error) {
+    if (isForeignKeyViolation(error)) {
+      throw new AppError(
+        409,
+        "This employee has related records (such as leave history or a department lead role) and cannot be deleted. Deactivate the account instead.",
+        "EMPLOYEE_HAS_RELATED_RECORDS",
+      );
+    }
+
+    throw error;
+  }
+
+  return toPublicEmployee(existing);
 }

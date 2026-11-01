@@ -16,6 +16,7 @@ import {
   assignReportingManager,
   assignRole,
   createEmployee,
+  deleteEmployee,
   getEmployee,
   listEmployees,
   updateAccountStatus,
@@ -565,6 +566,42 @@ export async function updateAccountStatusController(
       context.organizationId,
       employeeId,
       body.status,
+    );
+
+  res.status(200).json({
+    success: true,
+    data: employee,
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Delete employee                                                            */
+/* -------------------------------------------------------------------------- */
+
+// CHANGED: new controller
+export async function deleteEmployeeController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const context =
+    await getAuthenticatedEmployeeContext(
+      req,
+    );
+
+  const employeeId =
+    getEmployeeIdParam(req);
+
+  const employee =
+    await deleteEmployee(
+      context.organizationId,
+      employeeId,
+      {
+        employeeId:
+          context.employeeId,
+
+        role:
+          context.role,
+      },
     );
 
   res.status(200).json({

@@ -15,6 +15,7 @@ import {
   assignReportingManagerController,
   assignRoleController,
   createEmployeeController,
+  deleteEmployeeController,
   getEmployeeController,
   listEmployeesController,
   updateAccountStatusController,
@@ -231,6 +232,22 @@ router.patch(
     "SUPER_ADMIN",
   ),
   updateAccountStatusController,
+);
+
+/**
+ * --------------------------------------------------------------------------
+ * Employee deletion
+ * --------------------------------------------------------------------------
+ */
+
+// CHANGED: new route
+router.delete(
+  "/:employeeId",
+  requireRole(
+    "HR_ADMIN",
+    "SUPER_ADMIN",
+  ),
+  deleteEmployeeController,
 );
 
 export default router;

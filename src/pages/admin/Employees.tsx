@@ -9,15 +9,16 @@ import {
   Filter,
   Loader2,
   Mail,
-  MoreHorizontal,
   Phone,
   Plus,
   RefreshCw,
   Search,
   ShieldCheck,
+  Trash2,
   UserCheck,
   UserPlus,
   Users,
+  UserX,
   X,
 } from "lucide-react";
 
@@ -31,8 +32,10 @@ import {
 
 import {
   createEmployee,
+  deleteEmployee,
   listEmployees,
   updateEmployee,
+  updateEmployeeStatus,
   type CreateEmployeeInput,
   type EmployeeAuthenticationMethod,
   type EmployeePublicRecord,
@@ -54,6 +57,7 @@ type EmployeeModal =
   | "create"
   | "edit"
   | "details"
+  | "delete"
   | null;
 
 type StatusFilter =
@@ -121,6 +125,14 @@ const DEFAULT_FORM: EmployeeFormState = {
   authenticationMethod: "PASSWORD_AND_OTP",
 };
 
+// CHANGED: backend error codes that mean "this employee cannot be deleted".
+const DELETE_BLOCKED_CODES: readonly string[] = [
+  "EMPLOYEE_HAS_RELATED_RECORDS",
+  "EMPLOYEE_HAS_DIRECT_REPORTS",
+];
+
+const NOTICE_DURATION_MS = 6000;
+
 /* ============================================================================
    HELPERS
 ============================================================================ */
@@ -145,6 +157,28 @@ function getErrorMessage(
   }
 
   return fallback;
+}
+
+// CHANGED: reads the backend error code (for example EMPLOYEE_HAS_RELATED_RECORDS)
+function getErrorCode(
+  error: unknown,
+): string | null {
+  if (
+    error &&
+    typeof error === "object"
+  ) {
+    const candidate =
+      error as ServiceErrorLike;
+
+    if (
+      typeof candidate.code === "string" &&
+      candidate.code.trim()
+    ) {
+      return candidate.code;
+    }
+  }
+
+  return null;
 }
 
 function getInitials(
@@ -1030,6 +1064,148 @@ function SelectField({
 }
 
 /* ============================================================================
+   DELETE CONFIRMATION
+============================================================================ */
+
+// CHANGED: new component
+function DeleteEmployeeDialog({
+  employee,
+  deleting,
+  error,
+  errorCode,
+  onConfirm,
+  onDeactivate,
+  onCancel,
+}: {
+  employee: EmployeePublicRecord;
+  deleting: boolean;
+  error: string | null;
+  errorCode: string | null;
+  onConfirm: () => void;
+  onDeactivate: () => void;
+  onCancel: () => void;
+}) {
+  const blocked =
+    errorCode !== null &&
+    DELETE_BLOCKED_CODES.includes(
+      errorCode,
+    );
+
+  const canDeactivate =
+    errorCode ===
+      "EMPLOYEE_HAS_RELATED_RECORDS" &&
+    employee.status !== "INACTIVE";
+
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <Trash2
+          size={18}
+          className="mt-0.5 shrink-0"
+        />
+
+        <p className="leading-6">
+          This permanently removes the
+          employee and revokes their
+          access. This action cannot be
+          undone.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+        <EmployeeAvatar
+          employee={employee}
+          size="lg"
+        />
+
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-bold text-slate-900">
+            {getFullName(employee)}
+          </h3>
+
+          <p className="mt-0.5 truncate text-sm text-slate-500">
+            {employee.employeeId} •{" "}
+            {employee.email}
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            <StatusBadge
+              status={employee.status}
+            />
+
+            <RoleBadge
+              role={employee.role}
+            />
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertCircle
+            size={18}
+            className="mt-0.5 shrink-0"
+          />
+
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={deleting}
+          className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Cancel
+        </button>
+
+        {canDeactivate && (
+          <button
+            type="button"
+            onClick={onDeactivate}
+            disabled={deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#071a35] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0b2448] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {deleting ? (
+              <Loader2
+                size={16}
+                className="animate-spin"
+              />
+            ) : (
+              <UserX size={16} />
+            )}
+
+            Deactivate instead
+          </button>
+        )}
+
+        {!blocked && (
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {deleting ? (
+              <Loader2
+                size={16}
+                className="animate-spin"
+              />
+            ) : (
+              <Trash2 size={16} />
+            )}
+
+            Delete employee
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================================
    MODAL
 ============================================================================ */
 
@@ -1181,6 +1357,33 @@ export function Employees() {
     null,
   );
 
+  // CHANGED: delete state
+  const [
+    deleting,
+    setDeleting,
+  ] = useState(false);
+
+  const [
+    deleteError,
+    setDeleteError,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    deleteErrorCode,
+    setDeleteErrorCode,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const [
+    notice,
+    setNotice,
+  ] = useState<string | null>(
+    null,
+  );
+
   /* --------------------------------------------------------------------------
      LOAD
   -------------------------------------------------------------------------- */
@@ -1233,6 +1436,24 @@ export function Employees() {
   useEffect(() => {
     void loadEmployees();
   }, [loadEmployees]);
+
+  // CHANGED: success banner clears itself
+  useEffect(() => {
+    if (!notice) {
+      return;
+    }
+
+    const timeoutId =
+      window.setTimeout(() => {
+        setNotice(null);
+      }, NOTICE_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(
+        timeoutId,
+      );
+    };
+  }, [notice]);
 
   /* --------------------------------------------------------------------------
      FILTERING
@@ -1398,15 +1619,31 @@ export function Employees() {
       setModal("details");
     };
 
+  // CHANGED: opens the delete confirmation
+  const openDelete =
+    (
+      employee: EmployeePublicRecord,
+    ) => {
+      setSelectedEmployee(
+        employee,
+      );
+
+      setDeleteError(null);
+      setDeleteErrorCode(null);
+      setModal("delete");
+    };
+
   const closeModal =
     () => {
-      if (submitting) {
+      if (submitting || deleting) {
         return;
       }
 
       setModal(null);
       setSelectedEmployee(null);
       setFormError(null);
+      setDeleteError(null);
+      setDeleteErrorCode(null);
     };
 
   /* --------------------------------------------------------------------------
@@ -1566,6 +1803,114 @@ export function Employees() {
     };
 
   /* --------------------------------------------------------------------------
+     DELETE
+  -------------------------------------------------------------------------- */
+
+  // CHANGED: permanently deletes the selected employee
+  const handleDelete =
+    async () => {
+      if (!selectedEmployee) {
+        return;
+      }
+
+      const target =
+        selectedEmployee;
+
+      setDeleting(true);
+      setDeleteError(null);
+      setDeleteErrorCode(null);
+
+      try {
+        await deleteEmployee(
+          target.id,
+        );
+
+        setEmployees(
+          (current) =>
+            current.filter(
+              (employee) =>
+                employee.id !==
+                target.id,
+            ),
+        );
+
+        setNotice(
+          `${getFullName(target)} was deleted.`,
+        );
+
+        setModal(null);
+        setSelectedEmployee(null);
+      } catch (requestError) {
+        setDeleteError(
+          getErrorMessage(
+            requestError,
+            "Unable to delete the employee.",
+          ),
+        );
+
+        setDeleteErrorCode(
+          getErrorCode(
+            requestError,
+          ),
+        );
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+  // CHANGED: used when the backend says the employee has related records
+  const handleDeactivateInstead =
+    async () => {
+      if (!selectedEmployee) {
+        return;
+      }
+
+      const target =
+        selectedEmployee;
+
+      setDeleting(true);
+      setDeleteError(null);
+
+      try {
+        const updated =
+          await updateEmployeeStatus(
+            target.id,
+            {
+              status: "INACTIVE",
+            },
+          );
+
+        setEmployees(
+          (current) =>
+            current.map(
+              (employee) =>
+                employee.id ===
+                updated.id
+                  ? updated
+                  : employee,
+            ),
+        );
+
+        setNotice(
+          `${getFullName(target)} was deactivated.`,
+        );
+
+        setModal(null);
+        setSelectedEmployee(null);
+        setDeleteErrorCode(null);
+      } catch (requestError) {
+        setDeleteError(
+          getErrorMessage(
+            requestError,
+            "Unable to deactivate the employee.",
+          ),
+        );
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+  /* --------------------------------------------------------------------------
      CLEAR FILTERS
   -------------------------------------------------------------------------- */
 
@@ -1636,6 +1981,35 @@ export function Employees() {
           </button>
         </div>
       </div>
+
+      {/* CHANGED: SUCCESS NOTICE */}
+
+      {notice && (
+        <div
+          className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700"
+          role="status"
+        >
+          <CheckCircle2
+            size={18}
+            className="mt-0.5 shrink-0"
+          />
+
+          <p className="min-w-0 flex-1 font-semibold">
+            {notice}
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              setNotice(null)
+            }
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-emerald-600 transition hover:bg-emerald-100"
+            aria-label="Dismiss message"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* ERROR */}
 
@@ -2061,13 +2435,13 @@ export function Employees() {
                               }
                             />
 
+                            {/* CHANGED: replaces the "More actions" button */}
                             <IconButton
-                              label="More actions"
-                              icon={
-                                MoreHorizontal
-                              }
+                              label="Delete employee"
+                              icon={Trash2}
+                              danger
                               onClick={() =>
-                                openDetails(
+                                openDelete(
                                   employee,
                                 )
                               }
@@ -2177,6 +2551,18 @@ export function Employees() {
                                 )
                               }
                             />
+
+                            {/* CHANGED: delete on mobile */}
+                            <IconButton
+                              label="Delete"
+                              icon={Trash2}
+                              danger
+                              onClick={() =>
+                                openDelete(
+                                  employee,
+                                )
+                              }
+                            />
                           </div>
                         </div>
                       </div>
@@ -2260,6 +2646,37 @@ export function Employees() {
           />
         </Modal>
       )}
+
+      {/* CHANGED: DELETE MODAL */}
+
+      {modal === "delete" &&
+        selectedEmployee && (
+          <Modal
+            title="Delete employee"
+            subtitle="Review this action before continuing"
+            onClose={closeModal}
+          >
+            <DeleteEmployeeDialog
+              employee={
+                selectedEmployee
+              }
+              deleting={deleting}
+              error={deleteError}
+              errorCode={
+                deleteErrorCode
+              }
+              onConfirm={() =>
+                void handleDelete()
+              }
+              onDeactivate={() =>
+                void handleDeactivateInstead()
+              }
+              onCancel={
+                closeModal
+              }
+            />
+          </Modal>
+        )}
     </div>
   );
 }
@@ -2321,10 +2738,13 @@ function IconButton({
   label,
   icon: Icon,
   onClick,
+  danger = false,
 }: {
   label: string;
   icon: typeof Eye;
   onClick: () => void;
+  // CHANGED: red hover styling for destructive actions
+  danger?: boolean;
 }) {
   return (
     <button
@@ -2332,7 +2752,11 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#b88900]/20"
+      className={`flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition focus:outline-none focus:ring-2 ${
+        danger
+          ? "hover:bg-rose-50 hover:text-rose-600 focus:ring-rose-200"
+          : "hover:bg-slate-100 hover:text-slate-700 focus:ring-[#b88900]/20"
+      }`}
     >
       <Icon size={15} />
     </button>
