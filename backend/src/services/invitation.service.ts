@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 
 import { db } from "../../prisma/db.js";
 
@@ -21,13 +21,13 @@ import {
  * Invitations reuse the existing password-reset credential flow:
  *
  * HR creates employee (PENDING)
- *        ↓
+ *        Γåô
  * invitation link is emailed
- *        ↓
+ *        Γåô
  * employee opens the link and sets a password
- *        ↓
+ *        Γåô
  * confirmPasswordReset activates the account
- *        ↓
+ *        Γåô
  * employee signs in with email + password
  *
  * Security:

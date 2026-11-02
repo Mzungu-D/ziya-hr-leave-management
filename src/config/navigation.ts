@@ -6,6 +6,7 @@ import {
   FileText,
   HelpCircle,
   Home,
+  Mail,
   Users,
 } from "lucide-react";
 
@@ -28,13 +29,6 @@ const WORKSPACE_ROOTS = new Set([
   "/manager",
 ]);
 
-/**
- * HR/Admin workspace navigation.
- *
- * These paths must match the routes registered in App.tsx.
- * Navigation visibility is for presentation only. The backend
- * remains responsible for enforcing authentication and permissions.
- */
 export const adminNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -51,6 +45,14 @@ export const adminNavigation: NavigationItem[] = [
     icon: Users,
     description: "Employee directory and workforce records",
     roles: ["HR_ADMIN", "SUPER_ADMIN"],
+  },
+  {
+    key: "onboarding",
+    label: "Onboarding",
+    href: "/admin/onboarding",
+    icon: Mail,
+    description: "Send employee account invitations",
+    roles: ["HR_ADMIN"],
   },
   {
     key: "leave-management",
@@ -110,9 +112,6 @@ export const adminNavigation: NavigationItem[] = [
   },
 ];
 
-/**
- * Employee workspace navigation.
- */
 export const employeeNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -148,9 +147,6 @@ export const employeeNavigation: NavigationItem[] = [
   },
 ];
 
-/**
- * Manager workspace navigation.
- */
 export const managerNavigation: NavigationItem[] = [
   {
     key: "dashboard",
@@ -194,9 +190,6 @@ export const managerNavigation: NavigationItem[] = [
   },
 ];
 
-/**
- * Shared support navigation.
- */
 export const supportNavigation: NavigationItem[] = [
   {
     key: "help",
@@ -208,9 +201,6 @@ export const supportNavigation: NavigationItem[] = [
   },
 ];
 
-/**
- * Central navigation groups.
- */
 export const navigationGroups = {
   admin: adminNavigation,
   employee: employeeNavigation,
@@ -218,12 +208,6 @@ export const navigationGroups = {
   support: supportNavigation,
 } as const;
 
-/**
- * Return workspace navigation for the authenticated user's role.
- *
- * This function controls UI visibility only. It is not an
- * authorization mechanism.
- */
 export function getNavigationForRole(
   role: UserRole,
 ): NavigationItem[] {
@@ -235,40 +219,27 @@ export function getNavigationForRole(
       return managerNavigation;
 
     case "HR_ADMIN":
-    case "SUPER_ADMIN":
       return adminNavigation;
+
+    case "SUPER_ADMIN":
+      return adminNavigation.filter(
+        (item) => item.key !== "onboarding",
+      );
 
     default:
       return [];
   }
 }
 
-/**
- * Normalize a path for consistent comparisons.
- *
- * Examples:
- * /admin/         -> /admin
- * /admin/leave/   -> /admin/leave
- * /              -> /
- */
 function normalizePath(path: string): string {
   if (!path || path === "/") {
     return "/";
   }
 
   const withoutTrailingSlashes = path.replace(/\/+$/, "");
-
   return withoutTrailingSlashes || "/";
 }
 
-/**
- * Determine whether a navigation item matches the current route.
- *
- * Workspace root routes require an exact match, so the Dashboard
- * item does not remain active on child pages.
- *
- * Nested routes remain active under their parent navigation item.
- */
 export function isNavigationItemActive(
   currentPath: string,
   item: NavigationItem,
