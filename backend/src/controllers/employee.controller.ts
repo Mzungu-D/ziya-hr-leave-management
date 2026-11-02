@@ -23,6 +23,11 @@ import {
   updateEmployee,
 } from "../services/employee.service.js";
 
+// CHANGED: invitation service
+import {
+  sendEmployeeInvitation,
+} from "../services/invitation.service.js";
+
 /* -------------------------------------------------------------------------- */
 /* Validation                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -578,7 +583,6 @@ export async function updateAccountStatusController(
 /* Delete employee                                                            */
 /* -------------------------------------------------------------------------- */
 
-// CHANGED: new controller
 export async function deleteEmployeeController(
   req: Request,
   res: Response,
@@ -607,5 +611,36 @@ export async function deleteEmployeeController(
   res.status(200).json({
     success: true,
     data: employee,
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Send / resend invitation                                                   */
+/* -------------------------------------------------------------------------- */
+
+// CHANGED: new controller
+export async function sendInvitationController(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const context =
+    await getAuthenticatedEmployeeContext(
+      req,
+    );
+
+  const employeeId =
+    getEmployeeIdParam(req);
+
+  const result =
+    await sendEmployeeInvitation(
+      context.organizationId,
+      employeeId,
+    );
+
+  res.status(200).json({
+    success: true,
+    message:
+      "The invitation has been sent.",
+    data: result,
   });
 }

@@ -18,6 +18,7 @@ import {
   deleteEmployeeController,
   getEmployeeController,
   listEmployeesController,
+  sendInvitationController,
   updateAccountStatusController,
   updateEmployeeController,
 } from "../controllers/employee.controller.js";
@@ -236,11 +237,26 @@ router.patch(
 
 /**
  * --------------------------------------------------------------------------
- * Employee deletion
+ * Employee invitation (send / resend)
  * --------------------------------------------------------------------------
  */
 
 // CHANGED: new route
+router.post(
+  "/:employeeId/invitation",
+  requireRole(
+    "HR_ADMIN",
+    "SUPER_ADMIN",
+  ),
+  sendInvitationController,
+);
+
+/**
+ * --------------------------------------------------------------------------
+ * Employee deletion
+ * --------------------------------------------------------------------------
+ */
+
 router.delete(
   "/:employeeId",
   requireRole(

@@ -1402,6 +1402,20 @@ export async function confirmPasswordReset(
     );
   }
 
+  // CHANGED: only pending (invited) or active accounts may set a password
+  // through this workflow. This stops a suspended or deactivated account
+  // from being reactivated by an older link.
+  if (
+    employee.status !== "ACTIVE" &&
+    employee.status !== "PENDING"
+  ) {
+    throw new AppError(
+      400,
+      "The password reset link is invalid or expired.",
+      RESET_TOKEN_INVALID,
+    );
+  }
+
   const newPasswordHash =
     await hashPassword(
       params.password,
@@ -1438,8 +1452,8 @@ export async function confirmPasswordReset(
           passwordHash:
             newPasswordHash,
           status: "ACTIVE",
-          emailVerified:
-            employee.emailVerified,
+          // CHANGED: opening the emailed link proves mailbox ownership
+          emailVerified: true,
           phoneVerified:
             employee.phoneVerified,
         });
