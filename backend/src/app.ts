@@ -1,4 +1,4 @@
-﻿import express, {
+import express, {
   type ErrorRequestHandler,
   type NextFunction,
   type Request,
@@ -71,27 +71,24 @@ app.use(
  * Do not use "*" when credentials are enabled.
  */
 
+const allowedOrigins = [
+  ...env.APP_URL.split(",").map((o) => o.trim().replace(/\/+$/, "")),
+  ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173"]),
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: env.APP_URL,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
-    methods: [
-      "GET",
-      "HEAD",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-    allowedHeaders: [
-      "Accept",
-      "Authorization",
-      "Cache-Control",
-      "Content-Type",
-      "X-CSRF-Token",
-      "X-Requested-With",
-    ],
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposedHeaders: ["X-CSRF-Token"],
+    maxAge: 86400,
     optionsSuccessStatus: 204,
   }),
 );
