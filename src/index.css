@@ -59,10 +59,13 @@ img {
 }
 
 /* Prevent accidental horizontal scrolling */
-html,
+html {
+  overflow-x: hidden;
+}
+
 body,
 #root {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Better text wrapping on smaller devices */
@@ -97,4 +100,27 @@ p {
 /* Ziya People and Culture: refined display typography */
 .font-heading {
   font-family: "Manrope", Inter, ui-sans-serif, system-ui, sans-serif;
+}
+/* Ziya responsive additions */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+a,
+button,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* Stop iOS Safari zooming into form fields on focus */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -23,7 +23,6 @@ interface AppShellProps {
 }
 
 const DESKTOP_BREAKPOINT = "(min-width: 1024px)";
-const SIDEBAR_WIDTH = 248;
 
 function getHomeRoute(role: UserRole): string {
   switch (role) {
@@ -362,7 +361,7 @@ export function AppShell({
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden bg-slate-50 text-slate-900">
+    <div className="min-h-screen w-full overflow-x-clip bg-slate-50 text-slate-900">
       {/* ============================================================
           DESKTOP SIDEBAR
          ============================================================ */}
@@ -373,12 +372,7 @@ export function AppShell({
           MAIN APPLICATION AREA
          ============================================================ */}
 
-      <div
-        className="min-h-screen"
-        style={{
-          paddingLeft: `${SIDEBAR_WIDTH}px`,
-        }}
-      >
+      <div className="min-h-screen lg:pl-[248px]">
         <Topbar
           notificationCount={notificationCount}
           onNotificationsClick={handleNotificationsClick}
@@ -401,12 +395,7 @@ export function AppShell({
           MOBILE BOTTOM NAVIGATION
          ============================================================ */}
 
-      <MobileNavigation
-        role={userRole}
-        onNavigate={() =>
-          setMobileNavigationOpen(false)
-        }
-      />
+      <MobileNavigation role={userRole} onNavigate={() => setMobileNavigationOpen(false)} onMoreClick={() => setMobileNavigationOpen(true)} />
 
       {/* ============================================================
           MOBILE NAVIGATION DRAWER

@@ -14,6 +14,7 @@ import {
 } from "react";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 import {
   AdminDashboardServiceError,
@@ -417,6 +418,7 @@ function mapSystemOverview(
 
 export function AdminDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [dashboard, setDashboard] =
     useState<AdminDashboardData | null>(null);
@@ -563,7 +565,7 @@ export function AdminDashboard() {
     );
 
   return (
-    <main className="w-full min-w-0 overflow-x-hidden">
+    <div className="w-full min-w-0">
       <div className="mx-auto w-full min-w-0 max-w-[1920px] space-y-5 sm:space-y-6">
         <header className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -649,8 +651,7 @@ export function AdminDashboard() {
               description="Employees in your organization"
               icon={Users}
               onClick={() => {
-                window.location.href =
-                  "/admin/employees";
+                navigate("/admin/employees");
               }}
             />
 
@@ -671,8 +672,7 @@ export function AdminDashboard() {
               description="Requests awaiting HR action"
               icon={Clock3}
               onClick={() => {
-                window.location.href =
-                  "/admin/leave";
+                navigate("/admin/approvals");
               }}
             />
 
@@ -767,7 +767,7 @@ export function AdminDashboard() {
           <QuickActions />
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

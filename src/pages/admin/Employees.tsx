@@ -1229,7 +1229,7 @@ function Modal({
       aria-modal="true"
     >
       <div
-        className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${
+        className={`flex max-h-[95dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl ${
           wide
             ? "max-w-3xl"
             : "max-w-xl"
@@ -2267,7 +2267,7 @@ export function Employees() {
           <>
             {/* DESKTOP / TABLET */}
 
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto xl:block">
               <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50/70 text-left">
@@ -2457,7 +2457,7 @@ export function Employees() {
 
             {/* MOBILE */}
 
-            <div className="divide-y divide-slate-100 md:hidden">
+            <div className="divide-y divide-slate-100 xl:hidden">
               {filteredEmployees.map(
                 (employee) => (
                   <div
@@ -2752,7 +2752,7 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition focus:outline-none focus:ring-2 ${
+      className={`flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 transition focus:outline-none focus:ring-2 xl:h-8 xl:w-8 ${
         danger
           ? "hover:bg-rose-50 hover:text-rose-600 focus:ring-rose-200"
           : "hover:bg-slate-100 hover:text-slate-700 focus:ring-[#b88900]/20"
