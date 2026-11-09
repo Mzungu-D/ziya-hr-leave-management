@@ -494,7 +494,7 @@ export function Reports() {
 
   if (loading && !report) {
     return (
-      <div className="mx-auto w-full max-w-[1800px] p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-[1800px]">
         <div className="mb-6">
           <div className="h-8 w-64 animate-pulse rounded bg-slate-100" />
           <div className="mt-2 h-4 w-96 max-w-full animate-pulse rounded bg-slate-100" />
@@ -506,7 +506,7 @@ export function Reports() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1800px] space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-[1800px] space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div>

@@ -749,7 +749,7 @@ export function LeaveManagement() {
 
   return (
     <div className="min-h-full bg-slate-50">
-      <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
+      <div className="mx-auto w-full max-w-[1600px] py-1">
 
         {/* ================================================================
          * HEADER

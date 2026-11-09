@@ -124,3 +124,21 @@ textarea {
     font-size: 16px;
   }
 }
+/* Ziya table scroll safety */
+/* Any wide table (or the 720px calendar grid) scrolls inside its own box
+   instead of pushing the whole page sideways on phones and tablets. */
+:has(> table[class*="min-w-["]),
+:has(> div[class*="min-w-[720px]"]) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Modals: use the real visible height on mobile browsers (address bar aware) */
+[class*="max-h-[95vh]"] {
+  max-height: 95dvh;
+}
+
+[class*="max-h-[90vh]"] {
+  max-height: 90dvh;
+}
