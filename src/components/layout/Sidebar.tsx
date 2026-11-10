@@ -13,6 +13,7 @@ import {
 } from "../../config/navigation";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useProfilePicture } from "../../services/profile-picture.service";
 
 const SIDEBAR_BACKGROUND = "#071a35";
 const ACTIVE_BACKGROUND = "#d8a415";
@@ -146,11 +147,8 @@ export function Sidebar() {
     [user?.firstName, user?.lastName],
   );
 
-  const avatarUrl =
-    typeof user?.profilePictureUrl === "string" &&
-    user.profilePictureUrl.trim().length > 0
-      ? user.profilePictureUrl.trim()
-      : undefined;
+  const { url: loadedAvatarUrl } = useProfilePicture(user?.id);
+  const avatarUrl = loadedAvatarUrl ?? undefined;
 
   /*
    * If the authenticated user changes or their profile picture changes,

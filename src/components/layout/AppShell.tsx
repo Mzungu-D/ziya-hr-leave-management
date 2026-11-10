@@ -17,6 +17,8 @@ import type { UserRole } from "../../types/auth";
 import { MobileNavigation } from "./MobileNavigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { ProfilePhotoDialog } from "../profile/ProfilePhotoDialog";
+import { useProfilePicture } from "../../services/profile-picture.service";
 
 interface AppShellProps {
   children: ReactNode;
@@ -110,6 +112,48 @@ export function AppShell({
   } = useAuth();
 
   const [notificationCount, setNotificationCount] = useState(0);
+  const { url: avatarBlobUrl } = useProfilePicture(user?.id);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  /*
+   * Keep the notification bell current: refresh every minute, when the
+   * tab becomes visible again, and whenever the Notifications page
+   * marks items as read.
+   */
+  useEffect(() => {
+    if (!user?.email) {
+      return;
+    }
+
+    let active = true;
+
+    const refreshUnreadCount = () => {
+      getUnreadNotificationCount()
+        .then((count) => {
+          if (active) setNotificationCount(count);
+        })
+        .catch(() => {
+          /* keep the last known count */
+        });
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshUnreadCount();
+      }
+    };
+
+    const intervalId = window.setInterval(refreshUnreadCount, 60_000);
+    window.addEventListener("ziya:notifications-changed", refreshUnreadCount);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("ziya:notifications-changed", refreshUnreadCount);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [user?.email]);
   const [
     mobileNavigationOpen,
     setMobileNavigationOpen,
@@ -375,6 +419,7 @@ export function AppShell({
       <div className="min-h-screen lg:pl-[248px]">
         <Topbar
           notificationCount={notificationCount}
+          onProfileClick={() => setProfileDialogOpen(true)}
           onNotificationsClick={handleNotificationsClick}
           onMenuClick={() =>
             setMobileNavigationOpen(true)
@@ -611,11 +656,9 @@ export function AppShell({
                     className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#d8a415] text-xs font-bold text-white"
                     aria-hidden="true"
                   >
-                    {user.profilePictureUrl ? (
+                    {avatarBlobUrl ? (
                       <img
-                        src={
-                          user.profilePictureUrl
-                        }
+                        src={avatarBlobUrl}
                         alt=""
                         className="h-full w-full object-cover"
                       />
@@ -657,6 +700,7 @@ export function AppShell({
           </aside>
         </>
       )}
+      <ProfilePhotoDialog open={profileDialogOpen} onClose={() => setProfileDialogOpen(false)} />
     </div>
   );
 }

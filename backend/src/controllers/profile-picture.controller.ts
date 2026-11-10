@@ -237,8 +237,16 @@ export async function getProfilePictureImageController(
     );
   }
 
-  const body =
-    storedObject.body;
+  const body: unknown = storedObject.body;
+
+  /**
+   * downloadPrivateObject() returns the verified image as a Buffer.
+   * The old code only handled streams, so every picture request failed.
+   */
+  if (Buffer.isBuffer(body)) {
+    res.status(200).end(body);
+    return;
+  }
 
   /**
    * AWS SDK Node.js runtime normally exposes a readable stream.

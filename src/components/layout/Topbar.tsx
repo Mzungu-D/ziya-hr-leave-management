@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../../contexts/AuthContext";
+import { useProfilePicture } from "../../services/profile-picture.service";
 import type { UserRole } from "../../types/auth";
 
 interface TopbarProps {
@@ -110,6 +111,7 @@ export function Topbar({
   onProfileClick,
 }: TopbarProps) {
   const { user } = useAuth();
+  const { url: pictureUrl } = useProfilePicture(user?.id);
 
   const searchInputRef =
     useRef<HTMLInputElement>(null);
@@ -159,14 +161,14 @@ export function Topbar({
     () => {
       const value =
         userAvatarUrl?.trim() ||
-        user?.profilePictureUrl?.trim() ||
+        pictureUrl ||
         "";
 
       return value || null;
     },
     [
       userAvatarUrl,
-      user?.profilePictureUrl,
+      pictureUrl,
     ],
   );
 

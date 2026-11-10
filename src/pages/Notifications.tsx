@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -105,6 +105,7 @@ export function Notifications() {
       );
 
       setUnreadCount((count) => Math.max(0, count - 1));
+      window.dispatchEvent(new Event("ziya:notifications-changed"));
     } catch (err) {
       setError(
         err instanceof Error
@@ -134,6 +135,7 @@ export function Notifications() {
       );
 
       setUnreadCount(0);
+      window.dispatchEvent(new Event("ziya:notifications-changed"));
     } catch (err) {
       setError(
         err instanceof Error
@@ -155,7 +157,7 @@ export function Notifications() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <section className="mx-auto w-full max-w-5xl space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3">
