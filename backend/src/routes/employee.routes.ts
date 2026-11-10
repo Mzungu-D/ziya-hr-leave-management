@@ -144,7 +144,7 @@ router.patch(
  */
 router.post(
   "/:employeeId/invitation",
-  requireRole("HR_ADMIN"),
+  requireRole("HR_ADMIN", "SUPER_ADMIN"),
   sendInvitationController,
 );
 

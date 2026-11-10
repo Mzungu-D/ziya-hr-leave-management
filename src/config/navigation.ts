@@ -52,7 +52,7 @@ export const adminNavigation: NavigationItem[] = [
     href: "/admin/onboarding",
     icon: Mail,
     description: "Send employee account invitations",
-    roles: ["HR_ADMIN"],
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
   },
   {
     key: "leave-management",
@@ -222,9 +222,7 @@ export function getNavigationForRole(
       return adminNavigation;
 
     case "SUPER_ADMIN":
-      return adminNavigation.filter(
-        (item) => item.key !== "onboarding",
-      );
+      return adminNavigation;
 
     default:
       return [];

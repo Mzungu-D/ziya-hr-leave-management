@@ -36,6 +36,7 @@ import { Reports } from "./pages/admin/Reports";
 
 import SystemSettings from "./pages/admin/SystemSettings";
 
+import { Onboarding } from "./pages/admin/Onboarding";
 import { Login } from "./pages/auth/Login";
 
 import ApplyLeave from "./pages/employee/ApplyLeave";
@@ -586,6 +587,17 @@ function App() {
           {/* =====================================================
               UNKNOWN ROUTES
           ====================================================== */}
+
+          <Route
+            path="/admin/onboarding"
+            element={
+              <ProtectedRoute allowedRoles={["HR_ADMIN", "SUPER_ADMIN"]}>
+                <AppShell>
+                  <Onboarding />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="*"
