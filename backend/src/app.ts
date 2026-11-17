@@ -1,4 +1,4 @@
-import express, {
+﻿import express, {
   type ErrorRequestHandler,
   type NextFunction,
   type Request,
@@ -72,6 +72,8 @@ app.use(
  */
 
 const allowedOrigins = [
+    "https://www.ziyapeople.com",
+  "https://ziyapeople.com",
   ...env.APP_URL.split(",").map((o) => o.trim().replace(/\/+$/, "")),
   ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173"]),
 ].filter(Boolean);
